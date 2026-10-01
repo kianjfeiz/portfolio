@@ -41,7 +41,7 @@ async function run() {
   const shrink = img.animate([{ transform: from }, { transform: 'none' }], { duration: SHRINK, easing: EASE, fill: 'forwards' });
   img.style.transform = '';
   const reveal = nav.animate(
-    [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+    [{ opacity: 0 }, { opacity: 1 }],
     { duration: 600, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' },
   );
 

@@ -1,6 +1,7 @@
 :root {
   --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-  --ink: #fff;
+  --ink: #111;
+  --paper: #f3eee4;
 }
 
 *,
@@ -18,7 +19,7 @@ body {
 body {
   font-family: var(--serif);
   color: var(--ink);
-  background: #1b2433;
+  background: var(--paper);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,7 +43,7 @@ body {
 /* 4:3 like the photo, so scaling it up to fill the screen matches object-fit: cover */
 .hero {
   display: block;
-  width: min(62vw, calc((100svh - 11rem) * 4 / 3));
+  width: min(44vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
   height: auto;
   aspect-ratio: 4 / 3;
   object-fit: cover;
@@ -94,7 +95,7 @@ body {
 
 @media (max-width: 700px) {
   .hero {
-    width: min(88vw, calc((100svh - 11rem) * 4 / 3));
+    width: min(72vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
   }
 
   .nav {
