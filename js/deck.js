@@ -45,7 +45,7 @@
     if (opened) return;
     opened = true;
     root.classList.add('deck-opening', 'deck-open');
-    // drop the transition once unfolded so the mouse tilt stays immediate
+    // drop the transition once unfolded so later re-layouts (resize) are immediate
     const longest = 1300 + Math.max(...cards.map((c) => +c.style.getPropertyValue('--i'))) * 90;
     setTimeout(() => root.classList.remove('deck-opening'), longest + 50);
   }

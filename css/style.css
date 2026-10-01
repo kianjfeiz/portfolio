@@ -66,8 +66,6 @@ body {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: clamp(8px, 1vw, 14px);
-  /* tilts toward the mouse (js/tilt.js) */
-  transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
 }
 
 /* ---------- the fan of photos under the main one (js/deck.js) ---------- */
@@ -98,8 +96,8 @@ body {
 }
 
 .deck-open .card {
-  /* slid out to the side, inner edge folded back under its neighbour, following the mouse tilt a little */
-  transform: perspective(1100px) rotateX(calc(var(--tilt-x, 0deg) * 0.6)) translateX(var(--x)) rotateY(calc(var(--ry) + var(--tilt-y, 0deg) * 0.6));
+  /* slid out to the side, inner edge folded back under its neighbour */
+  transform: perspective(1100px) translateX(var(--x)) rotateY(var(--ry));
 }
 
 .deck-opening .card {
