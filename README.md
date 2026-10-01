@@ -5,8 +5,8 @@ Plain HTML + CSS + a little JS. No build step, no dependencies.
 ## Structure
 
 ```
-index.html            homepage: photo opens full-bleed then shrinks into a frame (js/intro.js)
-js/intro.js           the opening animation
+index.html            homepage: photo opens full-bleed, shrinks into frame 1 of a film strip; scrolling pulls the film out
+js/film.js            the film roll: flat SVG canister + strip at real 35mm proportions, opening animation, scroll
 work/index.html       /work/
 projects/index.html   /projects/
 css/style.css         single stylesheet
