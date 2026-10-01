@@ -10,7 +10,7 @@ js/intro.js           the opening animation
 work/index.html       /work/
 projects/index.html   /projects/
 css/style.css         single stylesheet
-assets/img/           hero-{1200,2000,4000}.jpg (AI-upscaled from 2000px source via Upscayl/remacri)
+assets/img/           kian-{1200,2000,4000}.jpg (AI-upscaled from a 2000px source via Upscayl/high-fidelity-4x)
 assets/fonts/         self-hosted serif (woff2)
 ```
 
