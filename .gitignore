@@ -8,3 +8,5 @@ node_modules/
 # raw footage stays out of git; only encoded loops go in assets/video
 *.mov
 raw/
+# throwaway design prototypes
+proto/
