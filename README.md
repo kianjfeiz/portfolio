@@ -1,11 +1,12 @@
 # portfolio
 
-Plain HTML + CSS. No build step, no dependencies.
+Plain HTML + CSS + a little JS. No build step, no dependencies.
 
 ## Structure
 
 ```
-index.html            homepage: full-bleed photo, links to work / projects
+index.html            homepage: photo opens full-bleed then shrinks into a frame (js/intro.js)
+js/intro.js           the opening animation
 work/index.html       /work/
 projects/index.html   /projects/
 css/style.css         single stylesheet
