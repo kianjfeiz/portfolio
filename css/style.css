@@ -1,5 +1,5 @@
 :root {
-  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --ink: #fff;
 }
 
@@ -16,7 +16,8 @@ body {
 }
 
 body {
-  font-family: var(--serif);
+  font-family: var(--sans);
+  font-weight: 700;
   color: var(--ink);
   background: #1b2433;
   -webkit-font-smoothing: antialiased;
@@ -41,26 +42,24 @@ body {
 .center {
   min-height: 100svh;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: clamp(1.5rem, 5vw, 4rem);
-  padding: 1rem;
+  padding: 1rem 1rem 2.5rem;
   text-align: center;
+  font-size: 0.9rem;
+  line-height: 1;
 }
 
 .name {
   margin: 0;
-  font-weight: 400;
-  font-size: clamp(2.5rem, 7vw, 5.5rem);
-  line-height: 1;
-  letter-spacing: 0.01em;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .nav-link {
   color: var(--ink);
   text-decoration: none;
-  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
-  line-height: 1;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s ease;
 }
@@ -73,7 +72,6 @@ body {
 
 @media (max-width: 600px) {
   .center {
-    flex-direction: column;
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
 }
