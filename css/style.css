@@ -66,6 +66,9 @@ body {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: clamp(8px, 1vw, 14px);
+  /* stay on the GPU layer the opening animation used: dropping it when the animation
+     ends re-draws the photo snapped to whole pixels, which reads as a jitter */
+  will-change: transform;
 }
 
 /* ---------- the fan of photos under the main one (js/deck.js) ---------- */
