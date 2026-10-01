@@ -7,7 +7,7 @@
 // animates, so it stays smooth.
 
 const HOLD = 700; // ms full-bleed before shrinking
-const SHRINK = 1000; // ms
+const SHRINK = 1800; // ms
 const EASE = 'cubic-bezier(0.7, 0, 0.2, 1)';
 
 const root = document.documentElement;
@@ -42,7 +42,7 @@ async function run() {
   img.style.transform = '';
   const reveal = nav.animate(
     [{ opacity: 0 }, { opacity: 1 }],
-    { duration: 600, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' },
+    { duration: 900, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' },
   );
 
   // a resize mid-animation would leave a stale transform: jump to the end
