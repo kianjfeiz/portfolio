@@ -60,6 +60,8 @@ body {
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: clamp(8px, 1vw, 14px);
+  /* tilts toward the mouse (js/tilt.js) */
+  transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
 }
 
 .nav {
