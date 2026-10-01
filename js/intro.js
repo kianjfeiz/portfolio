@@ -40,6 +40,8 @@ async function run() {
   const from = cover(); // re-measure in case the window changed during the hold
   const shrink = img.animate([{ transform: from }, { transform: 'none' }], { duration: SHRINK, easing: EASE, fill: 'forwards' });
   img.style.transform = '';
+  // let the photos underneath start unfolding as the main one settles (js/deck.js)
+  setTimeout(landing, SHRINK * 0.72);
   const reveal = nav.animate(
     [{ opacity: 0 }, { opacity: 1 }],
     { duration: 900, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' },
@@ -58,4 +60,12 @@ async function run() {
 
 function done() {
   root.classList.remove('intro', 'intro-ready');
+  landing();
+}
+
+let landed = false;
+function landing() {
+  if (landed) return;
+  landed = true;
+  document.dispatchEvent(new Event('hero-landing'));
 }

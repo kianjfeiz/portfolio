@@ -12,10 +12,25 @@
   <script>if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro');</script>
   <script src="js/intro.js" defer></script>
   <script src="js/tilt.js" defer></script>
+  <script src="js/deck.js" defer></script>
 </head>
 <body class="home">
   <main class="frame">
-    <img class="hero" src="assets/img/kian-2000.jpg" srcset="assets/img/kian-1200.jpg 1200w, assets/img/kian-2000.jpg 2000w, assets/img/kian-4000.jpg 4000w" sizes="100vw" alt="Kian taking a selfie in front of a snow-capped mountain range" fetchpriority="high">
+    <div class="stage">
+      <!-- more photos fanned out under the main one (laid out by js/deck.js); inner to outer on each side -->
+      <div class="deck">
+        <img class="card" data-side="left" src="assets/img/stack/lac-blanc.jpg" width="1400" height="1050" alt="A still alpine lake below Mont Blanc" fetchpriority="low">
+        <img class="card" data-side="left" src="assets/img/stack/snowy-pines.jpg" width="1050" height="1400" alt="Snow-covered pines under a deep blue sky" fetchpriority="low">
+        <img class="card" data-side="left" src="assets/img/stack/night-sled.jpg" width="1400" height="1050" alt="Sledding at night in falling snow" fetchpriority="low">
+        <img class="card" data-side="left" src="assets/img/stack/dunes.jpg" width="1050" height="1400" alt="A figure dancing on a sand dune under storm clouds" fetchpriority="low">
+        <img class="card" data-side="left" src="assets/img/stack/fog-night.jpg" width="1050" height="1400" alt="Friends in the fog at dusk" fetchpriority="low">
+        <img class="card" data-side="right" src="assets/img/stack/chamonix.jpg" width="1400" height="1050" alt="The Chamonix valley and Mont Blanc" fetchpriority="low">
+        <img class="card" data-side="right" src="assets/img/stack/summit-crew.jpg" width="787" height="1400" alt="Four friends cheering on a rocky summit" fetchpriority="low">
+        <img class="card" data-side="right" src="assets/img/stack/rock-gulls.jpg" width="1050" height="1400" alt="Someone on a sea rock with gulls overhead" fetchpriority="low">
+        <img class="card" data-side="right" src="assets/img/stack/snowed-in.jpg" width="787" height="1400" alt="A snowboard next to a snowed-in car" fetchpriority="low">
+      </div>
+      <img class="hero" src="assets/img/kian-2000.jpg" srcset="assets/img/kian-1200.jpg 1200w, assets/img/kian-2000.jpg 2000w, assets/img/kian-4000.jpg 4000w" sizes="100vw" alt="Kian taking a selfie in front of a snow-capped mountain range" fetchpriority="high">
+    </div>
 
     <nav class="nav">
       <a class="nav-link" href="work/">work</a>

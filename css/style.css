@@ -52,8 +52,14 @@ body {
   gap: clamp(1.1rem, 3vh, 1.75rem);
 }
 
+.stage {
+  position: relative;
+}
+
 /* 4:3 like the photo, so scaling it up to fill the screen matches object-fit: cover */
 .hero {
+  position: relative;
+  z-index: 20; /* above the fanned-out photos */
   display: block;
   width: min(44vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
   height: auto;
@@ -62,6 +68,42 @@ body {
   border-radius: clamp(8px, 1vw, 14px);
   /* tilts toward the mouse (js/tilt.js) */
   transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+}
+
+/* ---------- the fan of photos under the main one (js/deck.js) ---------- */
+
+.deck {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.deck-ready .deck {
+  display: block;
+}
+
+.card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w);
+  height: var(--h);
+  margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  object-fit: cover;
+  border-radius: clamp(6px, 0.8vw, 12px);
+  z-index: var(--z);
+  /* folded away behind the main photo until the deck opens */
+  transform: perspective(1100px) scale(0.86);
+}
+
+.deck-open .card {
+  /* slid out to the side, inner edge folded back under its neighbour, following the mouse tilt a little */
+  transform: perspective(1100px) rotateX(calc(var(--tilt-x, 0deg) * 0.6)) translateX(var(--x)) rotateY(calc(var(--ry) + var(--tilt-y, 0deg) * 0.6));
+}
+
+.deck-opening .card {
+  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
 .nav {
@@ -94,8 +136,7 @@ body {
 
 /* intro (see js/intro.js): photo hidden until decoded, then shown full-bleed above everything */
 .intro .hero {
-  position: relative;
-  z-index: 1;
+  z-index: 30;
   opacity: 0;
 }
 
@@ -110,7 +151,7 @@ body {
 
 @media (max-width: 700px) {
   .hero {
-    width: min(72vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
+    width: min(64vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
   }
 
   .nav {
