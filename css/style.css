@@ -1,5 +1,5 @@
 :root {
-  --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --ink: #fff;
 }
 
@@ -16,8 +16,7 @@ body {
 }
 
 body {
-  font-family: var(--sans);
-  font-weight: 700;
+  font-family: var(--serif);
   color: var(--ink);
   background: #1b2433;
   -webkit-font-smoothing: antialiased;
@@ -47,7 +46,7 @@ body {
   gap: clamp(1.5rem, 5vw, 4rem);
   padding: 1rem 1rem 2.5rem;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 1.25rem;
   line-height: 1;
 }
 
