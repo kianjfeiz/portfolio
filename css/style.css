@@ -90,84 +90,20 @@ body {
   outline: none;
 }
 
-/* ---------- film roll (js/film.js) ---------- */
-/* Everything is positioned in px by js/film.js (it sets the CSS variables below);
-   without JS none of this applies and the plain framed photo shows. */
-
-.film .home {
-  display: block;
-  padding: 0;
-  overflow: hidden auto; /* the page scrolls vertically (that pulls the film); nothing scrolls sideways */
-}
-
-.film .frame {
-  position: fixed;
-  inset: 0;
-}
-
-.film .reel {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--reel-left, 0px); /* film left of here is still inside the canister */
-  right: 0;
-  overflow: hidden;
-}
-
-.film .strip,
-.film .hero {
-  position: absolute;
-  transform: translateX(var(--pull, 0px));
-  will-change: transform;
-}
-
-.film .strip {
-  left: var(--strip-left, 0px);
-  top: var(--strip-top, 0px);
-}
-
-.film .strip svg,
-.film .canister svg {
-  display: block;
-}
-
-.film .canister {
-  position: absolute;
-  left: var(--can-left, 0px);
-  top: var(--can-top, 0px);
+/* intro (see js/intro.js): photo hidden until decoded, then shown full-bleed above everything */
+.intro .hero {
+  position: relative;
   z-index: 1;
+  opacity: 0;
 }
 
-.film .hero {
-  left: var(--photo-left, 0px);
-  top: var(--photo-top, 0px);
-  width: var(--photo-w, 0px);
-  height: var(--photo-h, 0px);
-  border-radius: var(--photo-radius, 4px);
-  z-index: 2;
+.intro.intro-ready .hero {
+  opacity: 1;
+  transition: opacity 0.25s ease;
 }
 
-.film .nav {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--nav-top, 80%);
-  transform: translateX(var(--nav-x, 0px));
-  opacity: var(--nav-opacity, 1);
-}
-
-/* the opening: the photo starts full-bleed above everything */
-.film.intro .hero {
-  z-index: 3;
-}
-
-.film-scroll {
-  display: none;
-}
-
-.film.live .film-scroll {
-  display: block;
-  height: 320vh;
+.intro .nav {
+  opacity: 0;
 }
 
 @media (max-width: 700px) {

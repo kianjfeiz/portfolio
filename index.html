@@ -8,14 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
   <link rel="stylesheet" href="css/style.css">
-  <!-- js/film.js lays out the film roll; without JS the page falls back to the plain framed photo -->
-  <script>document.documentElement.classList.add('film');</script>
-  <script src="js/film.js" defer></script>
+  <!-- flag the intro before first paint so the final layout never flashes -->
+  <script>if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro');</script>
+  <script src="js/intro.js" defer></script>
 </head>
 <body class="home">
   <main class="frame">
-    <div class="reel" aria-hidden="true"><div class="strip"></div></div>
-    <div class="canister" aria-hidden="true"></div>
     <img class="hero" src="assets/img/kian-2000.jpg" srcset="assets/img/kian-1200.jpg 1200w, assets/img/kian-2000.jpg 2000w, assets/img/kian-4000.jpg 4000w" sizes="100vw" alt="Kian taking a selfie in front of a snow-capped mountain range" fetchpriority="high">
 
     <nav class="nav">
@@ -24,8 +22,5 @@
       <a class="nav-link" href="projects/">projects</a>
     </nav>
   </main>
-
-  <!-- page length to scroll through: scrolling pulls the film out of the roll -->
-  <div class="film-scroll" aria-hidden="true"></div>
 </body>
 </html>
