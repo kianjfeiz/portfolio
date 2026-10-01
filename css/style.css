@@ -16,10 +16,10 @@ body {
   min-height: 100%;
 }
 
-/* classic Mac OS cursors (pixel art, 2x for retina); see assets/cursor */
+/* pixel-art arrow + pointing-hand cursors (2x for retina); see assets/cursor */
 html {
-  cursor: url("../assets/cursor/arrow.png") 1 1, auto;
-  cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 1 1, auto;
+  cursor: url("../assets/cursor/arrow.png") 0 0, auto;
+  cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 0 0, auto;
 }
 
 a,
