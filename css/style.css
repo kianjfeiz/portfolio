@@ -16,7 +16,7 @@ body {
   min-height: 100%;
 }
 
-/* pixel-art arrow + pointing-hand cursors (2x for retina); see assets/cursor */
+/* chunky pixel-art cursors: each art pixel is 2 CSS px (2x files for retina); see assets/cursor */
 html {
   cursor: url("../assets/cursor/arrow.png") 0 0, auto;
   cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 0 0, auto;
@@ -24,8 +24,8 @@ html {
 
 a,
 button {
-  cursor: url("../assets/cursor/hand.png") 5 0, pointer;
-  cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 5 0, pointer;
+  cursor: url("../assets/cursor/hand.png") 10 0, pointer;
+  cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 10 0, pointer;
 }
 
 body {
