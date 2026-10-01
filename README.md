@@ -5,9 +5,9 @@ Plain HTML + CSS. No build step, no dependencies.
 ## Structure
 
 ```
-index.html            homepage: fullscreen looping video, links to work / personal
+index.html            homepage: fullscreen looping video, links to work / projects
 work/index.html       /work/
-personal/index.html   /personal/
+projects/index.html   /projects/
 css/style.css         single stylesheet
 assets/video/         loop.mp4, loop.webm, poster.jpg
 assets/fonts/         self-hosted serif (woff2)
@@ -33,6 +33,6 @@ ffmpeg -i raw/source.mov -an -vf scale=1920:-2 -c:v libx264 -crf 26 -preset slow
 
 1. ~~Repo scaffold~~
 2. Homepage: video background, two links, typography
-3. Work / Personal pages
+3. Work / Projects pages
 4. Polish: responsive, reduced motion, meta tags, favicon
 5. Deploy
