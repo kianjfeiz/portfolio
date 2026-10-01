@@ -16,6 +16,18 @@ body {
   min-height: 100%;
 }
 
+/* classic Mac OS cursors (pixel art, 2x for retina); see assets/cursor */
+html {
+  cursor: url("../assets/cursor/arrow.png") 1 1, auto;
+  cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 1 1, auto;
+}
+
+a,
+button {
+  cursor: url("../assets/cursor/hand.png") 5 0, pointer;
+  cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 5 0, pointer;
+}
+
 body {
   font-family: var(--serif);
   color: var(--ink);
