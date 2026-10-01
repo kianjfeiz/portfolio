@@ -5,11 +5,11 @@ Plain HTML + CSS. No build step, no dependencies.
 ## Structure
 
 ```
-index.html            homepage: fullscreen looping video, links to work / projects
+index.html            homepage: full-bleed photo, links to work / projects
 work/index.html       /work/
 projects/index.html   /projects/
 css/style.css         single stylesheet
-assets/video/         loop.mp4, loop.webm, poster.jpg
+assets/img/           hero-{1200,2000,4000}.jpg (AI-upscaled from 2000px source via Upscayl/remacri)
 assets/fonts/         self-hosted serif (woff2)
 ```
 
