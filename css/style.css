@@ -40,16 +40,18 @@ body {
 .home {
   min-height: 100svh;
   overflow: hidden;
-  display: grid;
-  place-items: center;
-  padding: 2rem 1rem;
 }
 
+/* <main> centres itself at full screen height, so elements that browser
+   extensions inject into <body> land below it instead of shifting the layout */
 .frame {
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: clamp(1.1rem, 3vh, 1.75rem);
+  padding: 2rem 1rem;
 }
 
 .stage {
