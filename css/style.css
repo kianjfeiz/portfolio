@@ -109,7 +109,7 @@ body {
   object-fit: cover;
   border-radius: clamp(8px, 1vw, 14px); /* same as the main photo: any of them can be in focus */
   /* folded away behind the main photo until it opens; js/coverflow.js positions them after that */
-  transform: perspective(1100px) translateX(0px) rotateY(0deg) scale(0.86);
+  transform: perspective(1100px) translate3d(0px, 0, -180px) rotateY(0deg);
   will-change: transform;
 }
 
