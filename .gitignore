@@ -5,8 +5,4 @@ Thumbs.db
 *.log
 node_modules/
 .netlify/
-# raw footage stays out of git; only encoded loops go in assets/video
-*.mov
-raw/
-# throwaway design prototypes
-proto/
+.claude/
