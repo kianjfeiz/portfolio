@@ -335,6 +335,10 @@
       const prev = pos;
       pos = dragging.pos0 - (dragging.x - dragging.x0) / perItem;
       if (dt > 0) vel = vel * 0.6 + ((pos - prev) / dt) * 0.4;
+    } else if (glide) {
+      const k = Math.min(1, (now - glide.start) / glide.ms);
+      pos = k < 1 ? glide.from + (glide.to - glide.from) * (0.5 - Math.cos(Math.PI * k) / 2) : glide.to; // eases in and out
+      if (k === 1) glide = null;
     } else {
       // small steps keep it stable at any frame rate
       const steps = Math.max(1, Math.ceil(dt / 0.004));
@@ -350,7 +354,7 @@
     }
     render();
     if (arrived && Math.abs(pos - target) < 0.01) arrive(); // as good as there
-    if (dragging || pos !== target || vel !== 0) {
+    if (dragging || glide || pos !== target || vel !== 0) {
       raf = requestAnimationFrame(frame);
     } else {
       raf = 0;
@@ -373,10 +377,11 @@
     raf = requestAnimationFrame(frame);
   }
 
-  // glide to photo i (then, optionally, do something once it's there)
-  function goTo(i, then = null, k = OMEGA) {
+  // spring to photo i (then, optionally, do something once it's there)
+  function goTo(i, then = null) {
     target = Math.round(i);
-    stiffness = k;
+    stiffness = OMEGA;
+    glide = null;
     arrived = then;
     if (Math.abs(target - pos) > 0.001 || Math.abs(vel) > 0.01) hideCaption();
     if (reduced) {
@@ -387,6 +392,20 @@
       settled();
       return;
     }
+    run();
+  }
+
+  // a slower, gentler move than the spring, for going somewhere on the page's behalf:
+  // it eases in and out, taking a little longer the further it has to go
+  let glide = null;
+  function glideTo(i, then) {
+    if (reduced) return goTo(i, then);
+    const to = Math.round(i);
+    glide = { from: pos, to, start: performance.now(), ms: 500 + 140 * Math.abs(to - pos) };
+    target = to;
+    vel = 0;
+    arrived = then;
+    hideCaption();
     run();
   }
 
@@ -653,7 +672,7 @@
   });
 
   // Fold everything else away behind the photo in focus. For the selfie (the about view),
-  // spin the row back round to it first. Says 'row-folded' once it's done.
+  // glide the row back round to it first. Says 'row-folded' once it's done.
   function fold(toSelfie) {
     interactive = false;
     hideCaption();
@@ -666,7 +685,8 @@
       folded = false;
       for (const el of items) el.classList.remove('is-tucked', 'is-unfolding');
     }
-    goTo(goal, tuck, goal === here ? OMEGA : FOLLOW);
+    if (goal === here) goTo(goal, tuck);
+    else glideTo(goal, tuck); // round to the selfie, unhurried
   }
 
   function tuck() {
