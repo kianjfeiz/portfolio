@@ -2,7 +2,8 @@
 // one in focus flat in the middle and the rest folded accordion-style to either
 // side (each tucked under its inner neighbour, a little smaller each step,
 // running out past the edges of the page). Drag, swipe, scroll, click a side
-// photo or use the arrow keys to slide another one into the frame.
+// photo or use the arrow keys to slide another one into the frame. The row is a
+// loop: keep going either way and you come back round to where you started.
 //
 // Motion: every photo slides along one smooth curve through all its resting
 // places, so the whole row flows together under your finger at an even pace.
@@ -13,6 +14,8 @@
 // little so its hidden edge stays tucked behind: the arriving photo before that
 // moment, the leaving one after. They swap front and back while they're apart.
 // Input drives a spring that carries the speed of a flick and settles on a photo.
+// The photo directly opposite the one in focus is hidden: it fades out as it
+// leaves the far end of one fold and fades back in at the far end of the other.
 //
 // The fan unfolds from behind the main photo as it lands at the end of the
 // opening (js/intro.js), and becomes interactive once the opening is done.
@@ -45,19 +48,28 @@
   const n = items.length;
   const cos = Math.cos(ANGLE * RAD);
   const FOLDED = 0.16; // before the opening: tucked straight behind the main photo, this much smaller
+  const REACH = Math.floor(n / 2) + 2; // folds laid out this many photos out either side of the focus
+  const mod = (a, m) => ((a % m) + m) % m;
+  // how many places photo i is from focus f around the loop, in (-n/2, n/2]
+  const offset = (i, f) => {
+    const d = mod(i - f + n / 2, n) - n / 2;
+    return d <= -n / 2 ? d + n : d;
+  };
+  // fully shown up to one place short of the far side of the loop, gone at it
+  const shownAt = (d) => smooth(n / 2 - Math.abs(d));
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Every photo is a flat card in one 3D scene seen through a single perspective
   // (the stage centre). Side photos sit genuinely further back (z) rather than
   // being scaled down, so the browser's painting order always matches what is
-  // physically nearer. A state is { x, z, a }: world x and depth in px, and the
-  // rotateY angle in degrees.
+  // physically nearer. A state is { x, z, a, o }: world x and depth in px, the
+  // rotateY angle in degrees, and opacity.
   let H = 0; // height of the photo in focus
   let P = 1100; // perspective, px
   let perItem = 1; // px of drag that moves one photo
   let half = []; // half-width of each photo at full size
-  let layouts = []; // layouts[f][i] = resting state of photo i with photo f in focus
-  let passes = []; // passes[f] = how photos f and f + 1 turn and part as they trade places
+  let layouts = []; // layouts[f][d + REACH] = resting state of the photo d places from focus f
+  let passes = []; // passes[f] = how photos f and f + 1 (round the loop) turn and part as they trade places
   let ox = 0; // stage centre on screen
   let pos = HOME; // continuous: which photo is in focus
   let opened = false;
@@ -117,54 +129,57 @@
     }
     layouts = items.map((_, f) => {
       const L = [];
-      L[f] = { x: 0, z: 0, a: 0 };
+      L[REACH] = { x: 0, z: 0, a: 0 };
       for (const dir of [-1, 1]) {
         let edge = half[f];
-        for (let k = 1, i = f + dir; i >= 0 && i < n; k++, i += dir) {
+        for (let k = 1; k <= REACH; k++) {
+          const i = mod(f + dir * k, n); // the photo k places out that way, round the loop
+          const d = REACH + dir * k;
           const s = STEP_SCALE ** k;
           const z = P * (1 - 1 / s); // as far back as it takes to look s times the size
           const shown = 2 * half[i] * s * cos; // roughly its on-screen width once folded
           edge += H * s * REVEAL;
           const xs = dir * (edge - shown / 2); // where its centre shows on screen
-          L[i] = { x: (xs * (P - z)) / P, z, a: -dir * ANGLE }; // inner edge back, outer edge toward you
+          L[d] = { x: (xs * (P - z)) / P, z, a: -dir * ANGLE }; // inner edge back, outer edge toward you
           if (k === 1) {
             // With a narrow photo in focus, or on a very wide screen, the first photo
             // either side can reach past the centre line or tilt its tucked part in
             // front of the focused photo's edge: nudge it out until neither happens.
             const fits = (x) => {
-              const st = { ...L[i], x };
-              return dir * screenX(st, -dir * half[i]) >= 1 && clearOf(L[f], half[f], st, half[i]);
+              const st = { ...L[d], x };
+              return dir * screenX(st, -dir * half[i]) >= 1 && clearOf(L[REACH], half[f], st, half[i]);
             };
-            if (!fits(L[i].x)) {
-              let good = L[i].x + dir * 2 * H;
-              let bad = L[i].x;
+            if (!fits(L[d].x)) {
+              let good = L[d].x + dir * 2 * H;
+              let bad = L[d].x;
               for (let j = 0; j < 24; j++) {
                 const mid = (good + bad) / 2;
                 if (fits(mid)) good = mid;
                 else bad = mid;
               }
-              L[i].x = good;
-              edge = Math.max(edge, dir * screenX(L[i], dir * half[i])); // the next photo folds out from here
+              L[d].x = good;
+              edge = Math.max(edge, dir * screenX(L[d], dir * half[i])); // the next photo folds out from here
             }
           }
         }
       }
       return L;
     });
-    // For each hand-over from photo f (leaving, to the left) to f + 1 (arriving
-    // from the right): how far each swings so they're apart around the halfway
-    // point, then how deep the one underneath has to dip to stay tucked behind.
+    // For each hand-over from photo f (leaving, to the left) to the next one round
+    // the loop (arriving from the right): how far each swings so they're apart around
+    // the halfway point, then how deep the one underneath has to dip to stay tucked behind.
     passes = [];
-    for (let f = 0; f < n - 1; f++) {
+    for (let f = 0; f < n; f++) {
+      const b = mod(f + 1, n);
       let swingA = 0;
       let swingB = 0;
       for (const t of [0.5 - WINDOW, 0.5, 0.5 + WINDOW]) {
         const A = curve(f, f, t);
-        const B = curve(f + 1, f, t);
+        const B = curve(b, f, t);
         A.x -= PART * H * swingAt(t);
         B.x += PART * H * swingAt(t);
         swingA = Math.max(swingA, (steepest(A, half[f], +1) - A.a) / swingAt(t));
-        swingB = Math.min(swingB, (steepest(B, half[f + 1], -1) - B.a) / swingAt(t));
+        swingB = Math.min(swingB, (steepest(B, half[b], -1) - B.a) / swingAt(t));
       }
       // the shallowest dip that keeps everything clean (too deep and it would sink behind
       // the photo folded behind it, so step down from shallow rather than bisect)
@@ -197,18 +212,20 @@
     return hi;
   }
 
-  // how many times, through the hand-over from f to f + 1, a photo painted on top
-  // isn't in front of one it covers (checked for the photos around the pair)
+  // how many times, through the hand-over from f to the next photo, a photo painted on
+  // top isn't in front of one it covers (checked for the photos around the pair)
   function passFaults(f) {
     let bad = 0;
     for (let k = 1; k < 80; k++) {
       const t = k / 80;
       if (Math.abs(t - 0.5) < 1e-6) continue;
-      const p = f + t;
-      const all = flowAt(p);
-      for (let i = Math.max(0, f - 2); i <= Math.min(n - 1, f + 3); i++) {
-        for (let j = Math.max(0, f - 2); j <= Math.min(n - 1, f + 3); j++) {
-          if (Math.abs(i - p) >= Math.abs(j - p)) continue; // i is painted on top of j
+      const all = flowAt(f + t);
+      for (let a = -2; a <= 3; a++) {
+        for (let b = -2; b <= 3; b++) {
+          if (Math.abs(a - t) >= Math.abs(b - t)) continue; // a is painted on top of b
+          const i = mod(f + a, n);
+          const j = mod(f + b, n);
+          if (all[i].o < 0.05 || all[j].o < 0.05) continue;
           if (!clearOf(all[i], half[i], all[j], half[j])) bad++;
         }
       }
@@ -216,23 +233,24 @@
     return bad;
   }
 
-  // resting state of photo i with focus f, extended smoothly past either end of the row
-  function key(f, i) {
-    if (f < 0) return extend(layouts[0][i], layouts[1][i], -f);
-    if (f > n - 1) return extend(layouts[n - 1][i], layouts[n - 2][i], f - (n - 1));
-    return layouts[f][i];
-  }
-  const extend = (a, b, k) => ({ x: a.x + (a.x - b.x) * k, z: a.z + (a.z - b.z) * k, a: a.a + (a.a - b.a) * k });
+  // resting state of the photo d places from focus f (any integer f: it's a loop)
+  const key = (f, d) => layouts[mod(f, n)][d + REACH];
 
   // photo i a fraction t of the way from focus f to f + 1, on a smooth curve through
   // its resting states (so it flows on through each one without stopping) that
   // never overshoots them (so photos that rest parallel stay parallel)
   function curve(i, f, t) {
-    const p0 = key(f - 1, i);
-    const p1 = key(f, i);
-    const p2 = key(f + 1, i);
-    const p3 = key(f + 2, i);
-    return { x: mono(p0.x, p1.x, p2.x, p3.x, t), z: mono(p0.z, p1.z, p2.z, p3.z, t), a: mono(p0.a, p1.a, p2.a, p3.a, t) };
+    const d = offset(i, f);
+    const p0 = key(f - 1, d + 1);
+    const p1 = key(f, d);
+    const p2 = key(f + 1, d - 1);
+    const p3 = key(f + 2, d - 2);
+    return {
+      x: mono(p0.x, p1.x, p2.x, p3.x, t),
+      z: mono(p0.z, p1.z, p2.z, p3.z, t),
+      a: mono(p0.a, p1.a, p2.a, p3.a, t),
+      o: shownAt(d - t),
+    };
   }
 
   // how far through the swing each photo is, a fraction t of the way through the hand-over
@@ -240,49 +258,60 @@
   // dips in over the first part of the hand-over, comes back up while the pair are apart
   const dipAt = (t) => smooth(t / (0.5 - WINDOW)) * (1 - smooth((t - 0.5 + WINDOW) / (2 * WINDOW)));
 
-  // every photo's state with focus at (continuous) position p
+  // every photo's state with focus at (continuous) position p; p keeps counting up or
+  // down as you go round, and photo i sits at p = i, i ± n, i ± 2n...
   const states = [];
   function flowAt(p) {
-    const base = Math.min(n - 1, Math.max(0, p));
-    const f = Math.min(n - 2, Math.floor(base));
-    const t = base - f;
+    const f = Math.floor(p);
+    const t = p - f;
     for (let i = 0; i < n; i++) states[i] = curve(i, f, t);
     // the pass: both swing steeper toward the middle, and the one underneath dips
     // (the arriving one before the halfway point, the leaving one after)
-    const pass = passes[f];
+    const A = mod(f, n);
+    const B = mod(f + 1, n);
+    const pass = passes[A];
     if (pass && t > 0) {
       const sw = swingAt(t);
-      states[f].a += pass.swingA * sw;
-      states[f + 1].a += pass.swingB * sw;
-      states[f].x -= PART * H * sw;
-      states[f + 1].x += PART * H * sw;
-      states[f].z -= pass.dip * dipAt(1 - t);
-      states[f + 1].z -= pass.dip * dipAt(t);
+      states[A].a += pass.swingA * sw;
+      states[B].a += pass.swingB * sw;
+      states[A].x -= PART * H * sw;
+      states[B].x += PART * H * sw;
+      states[A].z -= pass.dip * dipAt(1 - t);
+      states[B].z -= pass.dip * dipAt(t);
     }
-    // past either end of the row, everything slides together (rubber band)
-    const over = p - base;
-    if (over) for (const st of states) st.x -= (over * perItem * (P - st.z)) / P;
     return states;
   }
+
+  // how far photo i is from the focus right now (continuous, signed): nearer paints on top
+  const away = (i, p) => offset(i, Math.floor(p)) - (p - Math.floor(p));
 
   // ---------- drawing ----------
 
   const drawn = []; // each photo's state as last drawn
+  const ranks = []; // how far each is from the focus as last drawn
   const zs = [];
+  const ops = [];
   let centerShown = -1;
   function render() {
     const all = flowAt(pos);
-    const center = Math.round(Math.min(n - 1, Math.max(0, pos)));
+    const center = mod(Math.round(pos), n);
     for (let i = 0; i < n; i++) {
       const el = items[i];
       // nearer the focus paints on top; the two passing photos swap exactly halfway, when they don't overlap
-      const d = Math.abs(i - pos);
-      const z = 10000 - Math.round(d * 1000) + (d === 0.5 && i > pos ? 1 : 0);
+      const d = away(i, pos);
+      ranks[i] = Math.abs(d);
+      const z = 10000 - Math.round(ranks[i] * 1000) + (d === 0.5 ? 1 : 0);
       if (zs[i] !== z) el.style.zIndex = String((zs[i] = z));
-      if (el === hero ? root.classList.contains('intro') : !opened) continue; // the opening owns these
       const st = all[i];
+      const o = Math.round(st.o * 1000) / 1000;
+      if (ops[i] !== o) {
+        el.style.opacity = o === 1 ? '' : String(o);
+        el.style.visibility = o === 0 ? 'hidden' : ''; // and out of the way of the pointer
+        ops[i] = o;
+      }
+      if (el === hero ? root.classList.contains('intro') : !opened) continue; // the opening owns these
       el.style.transform = `perspective(${P}px) translate3d(${st.x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg)`;
-      drawn[i] = { x: st.x, z: st.z, a: st.a };
+      drawn[i] = { x: st.x, z: st.z, a: st.a, o: st.o };
     }
     if (center !== centerShown) {
       items[centerShown]?.classList.remove('is-center');
@@ -306,7 +335,7 @@
     last = now;
     if (dragging) {
       const prev = pos;
-      pos = rubber(dragging.pos0 - (dragging.x - dragging.x0) / perItem);
+      pos = dragging.pos0 - (dragging.x - dragging.x0) / perItem;
       if (dt > 0) vel = vel * 0.6 + ((pos - prev) / dt) * 0.4;
     } else {
       // a slightly soft spring, in small steps so it's stable at any frame rate
@@ -337,7 +366,7 @@
   }
 
   function goTo(i) {
-    target = Math.min(n - 1, Math.max(0, Math.round(i)));
+    target = Math.round(i);
     stiffness = OMEGA;
     if (Math.abs(target - pos) > 0.001 || Math.abs(vel) > 0.01) hideCaption();
     if (reduced) {
@@ -350,18 +379,6 @@
     run();
   }
 
-  // resistance past the first and last photo
-  function rubber(p) {
-    if (p < 0) return p * 0.3;
-    if (p > n - 1) return n - 1 + (p - (n - 1)) * 0.3;
-    return p;
-  }
-  function unrubber(p) {
-    if (p < 0) return p / 0.3;
-    if (p > n - 1) return n - 1 + (p - (n - 1)) / 0.3;
-    return p;
-  }
-
   // ---------- drag / swipe / click ----------
 
   stage.addEventListener('pointerdown', (e) => {
@@ -371,7 +388,7 @@
     clearTimeout(wheelTimer);
     wheelTimer = 0;
     // grab the row wherever it is, even mid-glide
-    dragging = { id: e.pointerId, x0: e.clientX, x: e.clientX, pos0: unrubber(pos), moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
+    dragging = { id: e.pointerId, x0: e.clientX, x: e.clientX, pos0: pos, moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
     stage.setPointerCapture(e.pointerId);
     run();
   });
@@ -388,10 +405,10 @@
     const d = dragging;
     dragging = null;
     if (!d.moved) {
-      // a click: bring the photo that was clicked into the frame
+      // a click: bring the photo that was clicked into the frame, the short way round
       const i = items.indexOf(d.hit);
       vel = 0;
-      return goTo(i >= 0 ? i : Math.round(pos));
+      return goTo(i >= 0 ? Math.round(pos) + offset(i, Math.round(pos)) : Math.round(pos));
     }
     // the finger's speed over its last ~80 ms (least squares), carried into the spring
     const recent = d.samples.filter(([t]) => t >= e.timeStamp - 80);
@@ -408,7 +425,6 @@
       v = den > 0 ? num / den : 0; // px per ms
     }
     vel = (-v * 1000) / perItem; // photos per second
-    if (pos < 0 || pos > n - 1) vel *= 0.3; // already stretched past an end
     goTo(pos + vel * FLING);
   }
   stage.addEventListener('pointerup', release);
@@ -430,7 +446,7 @@
     const px = d * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerWidth : 1);
     if (!wheelTimer) target = pos; // pick up from wherever the row is
     wheelDir = Math.sign(px);
-    target = Math.min(n - 0.65, Math.max(-0.35, target + px / (perItem * 1.15)));
+    target += px / (perItem * 1.15);
     stiffness = FOLLOW;
     run();
     clearTimeout(wheelTimer);
@@ -473,9 +489,8 @@
   // the widest stretch of photo i (in screen x from the stage centre) not covered by a photo painted above it
   function visibleSpan(i, minX, maxX) {
     let segs = [[Math.max(minX, screenX(drawn[i], -half[i])), Math.min(maxX, screenX(drawn[i], half[i]))]];
-    const d = Math.abs(i - pos);
     for (let j = 0; j < n; j++) {
-      if (j === i || !drawn[j] || Math.abs(j - pos) >= d) continue;
+      if (j === i || !drawn[j] || drawn[j].o < 0.05 || ranks[j] >= ranks[i]) continue;
       const l = screenX(drawn[j], -half[j]);
       const r = screenX(drawn[j], half[j]);
       segs = segs.flatMap(([a, b]) => [[a, Math.min(b, l)], [Math.max(a, r), b]]).filter(([a, b]) => b - a > 1);
@@ -511,7 +526,7 @@
       const sx = cl + ((cr2 - cl) * k) / 8;
       const zc = st.z - uAt(sx) * sn; // depth of this photo's plane at that column
       for (let j = 0; j < n; j++) {
-        if (j === i || !drawn[j]) continue;
+        if (j === i || !drawn[j] || drawn[j].o < 0.05) continue;
         const zo = depthAt(drawn[j], half[j], sx);
         if (zo === null) continue;
         // the other photo's top edge, carried back into this plane, plus a little air (10 px on screen)
@@ -551,7 +566,7 @@
   // the row has come to rest
   function settled() {
     if (!interactive || dragging || wheelTimer) return;
-    if (!canHover || viaKeys) showCaption(items[target]);
+    if (!canHover || viaKeys) showCaption(items[mod(target, n)]);
     else if (pointer) showCaption(photoAt(pointer.x, pointer.y));
   }
 
@@ -573,7 +588,7 @@
     // start folded behind the main photo, using the same transform functions as the
     // laid-out state so each one interpolates on its own
     for (const c of cards) {
-      c.style.setProperty('--i', String(Math.abs(items.indexOf(c) - HOME) - 1));
+      c.style.setProperty('--i', String(Math.abs(offset(items.indexOf(c), HOME)) - 1));
       c.style.transform = `perspective(${P}px) translate3d(0px, 0, ${(-P * FOLDED) / (1 - FOLDED)}px) rotateY(0deg)`;
     }
     if (!reduced) root.classList.add('deck-opening');
