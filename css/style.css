@@ -82,8 +82,15 @@ body {
   pointer-events: none;
 }
 
+/* hidden until it unfolds: otherwise the cards show in the middle of the page
+   while the main photo is still loading */
 .deck-ready .deck {
   display: block;
+  visibility: hidden;
+}
+
+.deck-open .deck {
+  visibility: visible;
 }
 
 .card {
