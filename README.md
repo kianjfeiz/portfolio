@@ -7,7 +7,7 @@ Plain HTML + CSS + a little JS. No build step, no dependencies.
 ```
 index.html            homepage: photo opens full-bleed then shrinks into a frame (js/intro.js)
 js/intro.js           the opening animation
-js/deck.js            the fan of photos under the main one
+js/coverflow.js       the photos in a draggable Cover Flow row around the main one
 assets/img/stack/     photos in the fan (web-size, no metadata)
 work/index.html       /work/
 projects/index.html   /projects/

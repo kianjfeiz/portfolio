@@ -61,6 +61,7 @@ async function run() {
 function done() {
   root.classList.remove('intro', 'intro-ready');
   landing();
+  document.dispatchEvent(new Event('intro-done'));
 }
 
 let landed = false;
