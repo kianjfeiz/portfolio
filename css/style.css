@@ -272,7 +272,7 @@ body {
 .about {
   display: none;
   max-width: 32rem;
-  margin-top: clamp(0.5rem, 3vh, 2rem);
+  margin-top: clamp(0.25rem, 1.5vh, 1rem);
   font-size: clamp(1.15rem, 1rem + 0.4vw, 1.35rem);
   line-height: 1.45;
   text-align: center;
@@ -282,6 +282,17 @@ body {
 
 .about p {
   margin: 0 0 1em;
+}
+
+/* the links at the bottom: same serif and underline as the ones in the nav */
+.about .links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem clamp(1.5rem, 4vw, 2.5rem);
+  margin-top: 1.6em;
+  font-size: 1.2em;
+  line-height: 1;
 }
 
 .about-open .about {
@@ -295,7 +306,7 @@ body {
 
 .about-open .frame {
   justify-content: flex-start;
-  padding-top: clamp(2rem, 9vh, 6rem);
+  padding-top: clamp(1.5rem, 6vh, 4rem);
 }
 
 .about-open .hero {
