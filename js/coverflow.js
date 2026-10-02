@@ -4,16 +4,31 @@
 // running out past the edges of the page). Drag, swipe, scroll, click a side
 // photo or use the arrow keys to slide another one into the frame.
 //
+// Motion: every photo slides along one smooth curve through all its resting
+// places, so the whole row flows together under your finger at an even pace.
+// Two overlapping flat photos can't swap which is in front without one passing
+// through the other, so the pair trading places pass like cards in a stack: they
+// swing steeper as they reach the middle (like Cover Flow), which opens a sliver
+// of space between them for a moment, and whichever is underneath dips back a
+// little so its hidden edge stays tucked behind: the arriving photo before that
+// moment, the leaving one after. They swap front and back while they're apart.
+// Input drives a spring that carries the speed of a flick and settles on a photo.
+//
 // The fan unfolds from behind the main photo as it lands at the end of the
 // opening (js/intro.js), and becomes interactive once the opening is done.
 
 (() => {
   const ANGLE = 34; // degrees a side photo's inner edge folds back
+  const WINDOW = 0.1; // half-width (in photos of scroll) of the moment the passing pair are apart
+  const PART = 0.12; // how far the passing pair slide apart at the halfway point, as a share of the photo height
   const STEP_SCALE = 0.92; // each photo looks a little smaller than the one inside it
   const REVEAL = 0.34; // strip of each side photo left showing, as a share of its height
-  const P = 1100; // perspective, px
-  const GAP = 3; // px between the two moving photos at the moment they swap front and back
-  const SNAP = 9; // how quickly it settles on a photo (higher = snappier)
+  const DEPTH = 2.5; // perspective distance as a multiple of the photo height (same look on any screen)
+  const GAP = 4; // px between the two passing photos at the instant they swap front and back
+  const OMEGA = 10.5; // spring stiffness (rad/s): higher settles faster
+  const ZETA = 0.8; // spring damping: just under 1, so it eases past a whisker and settles
+  const FOLLOW = 22; // stiffer spring while a trackpad or wheel is moving the row
+  const FLING = 0.22; // seconds of a flick's speed carried into where it lands
   const RAD = Math.PI / 180;
 
   const root = document.documentElement;
@@ -29,7 +44,7 @@
   const HOME = left.length;
   const n = items.length;
   const cos = Math.cos(ANGLE * RAD);
-  const FOLDED_Z = -180; // before the opening: tucked straight behind the main photo
+  const FOLDED = 0.16; // before the opening: tucked straight behind the main photo, this much smaller
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Every photo is a flat card in one 3D scene seen through a single perspective
@@ -38,17 +53,20 @@
   // physically nearer. A state is { x, z, a }: world x and depth in px, and the
   // rotateY angle in degrees.
   let H = 0; // height of the photo in focus
+  let P = 1100; // perspective, px
   let perItem = 1; // px of drag that moves one photo
   let half = []; // half-width of each photo at full size
-  let layouts = []; // layouts[f][i] = state of photo i with photo f in focus
-  let meets = []; // meets[f] = x of photo f where it has just slid clear of photo f + 1
+  let layouts = []; // layouts[f][i] = resting state of photo i with photo f in focus
+  let passes = []; // passes[f] = how photos f and f + 1 turn and part as they trade places
+  let ox = 0; // stage centre on screen
   let pos = HOME; // continuous: which photo is in focus
-  let target = HOME;
   let opened = false;
   let interactive = false;
 
   // aspect from the width/height attributes, so no need to wait for the images to load
   const aspect = (el) => (el === hero ? hero.offsetWidth / hero.offsetHeight : el.width / el.height);
+
+  // ---------- geometry ----------
 
   // screen x (from the stage centre) of the point u px along a card's width
   function screenX(st, u) {
@@ -57,10 +75,42 @@
     return (X * P) / (P - Z);
   }
 
+  // depth (z) of card st (half-width hw) where the ray through screen column sx meets it, or null if it misses
+  function depthAt(st, hw, sx) {
+    const c = Math.cos(st.a * RAD);
+    const sn = Math.sin(st.a * RAD);
+    const u = ((sx * (P - st.z)) / P - st.x) / (c - (sx * sn) / P);
+    return u < -hw || u > hw ? null : st.z - u * sn;
+  }
+
+  const span = (st, hw) => [screenX(st, -hw), screenX(st, hw)];
+
+  // Is card `top` (painted above) physically nearer than `under` everywhere they overlap on screen?
+  // Both are flat and only turn about the vertical axis, so a handful of columns is enough.
+  const SAMPLES = [0, 0.04, 0.12, 0.25, 0.5, 0.75, 1];
+  function clearOf(top, hwT, under, hwU) {
+    const [tl, tr] = span(top, hwT);
+    const [ul, ur] = span(under, hwU);
+    const lo = Math.max(tl, ul);
+    const hi = Math.min(tr, ur);
+    if (lo >= hi) return true;
+    for (const k of SAMPLES) {
+      for (const c of [hi - 0.25 - k * (hi - lo - 0.5), lo + 0.25 + k * (hi - lo - 0.5)]) {
+        const dt = depthAt(top, hwT, c);
+        const du = depthAt(under, hwU, c);
+        if (dt !== null && du !== null && dt < du + 1) return false;
+      }
+    }
+    return true;
+  }
+
   function measure() {
     H = hero.offsetHeight;
-    perItem = H * 0.7;
+    P = H * DEPTH;
+    perItem = H * 0.72;
     half = items.map((el) => (H * aspect(el)) / 2);
+    const sr = stage.getBoundingClientRect();
+    ox = sr.left + sr.width / 2;
     for (const c of cards) {
       c.style.setProperty('--h', `${H}px`);
       c.style.setProperty('--w', `${(H * aspect(c)).toFixed(1)}px`);
@@ -83,7 +133,7 @@
             // front of the focused photo's edge: nudge it out until neither happens.
             const fits = (x) => {
               const st = { ...L[i], x };
-              return dir * screenX(st, -dir * half[i]) >= 1 && clearOf(L[f], half[f], st, half[i], dir);
+              return dir * screenX(st, -dir * half[i]) >= 1 && clearOf(L[f], half[f], st, half[i]);
             };
             if (!fits(L[i].x)) {
               let good = L[i].x + dir * 2 * H;
@@ -101,197 +151,272 @@
       }
       return L;
     });
-    // Two overlapping flat photos can't swap which is in front without passing
-    // through each other, so when photo f hands over to f + 1 it first swings
-    // back and slides left until its right edge just clears f + 1's left edge
-    // (f + 1 waits, tucked where it was); only then does f + 1 come forward.
-    meets = items.map((_, f) => {
-      if (f === n - 1) return 0;
-      const B = layouts[f][f + 1];
-      const target = screenX(B, -half[f + 1]) - GAP;
-      const z = layouts[f + 1][f].z;
-      const Z = z - half[f] * Math.sin(ANGLE * RAD);
-      return (target * (P - Z)) / P - half[f] * Math.cos(ANGLE * RAD);
-    });
-  }
-
-  // depth (z) of card st (half-width hw) where the ray through screen column sx meets it, or null if it misses
-  function depthAt(st, hw, sx) {
-    const c = Math.cos(st.a * RAD);
-    const sn = Math.sin(st.a * RAD);
-    const u = ((sx * (P - st.z)) / P - st.x) / (c - (sx * sn) / P);
-    return u < -hw || u > hw ? null : st.z - u * sn;
-  }
-
-  // on-screen extent of card st with half-width hw
-  const span = (st, hw) => [screenX(st, -hw), screenX(st, hw)];
-
-  // Is card `top` (painted above) physically nearer than `under` everywhere they overlap on screen?
-  // Both are flat and only turn about the vertical axis, so checking a handful of columns
-  // across the overlap (weighted toward the trailing edge, where it is closest) is enough.
-  const SAMPLES = [0, 0.04, 0.12, 0.25, 0.5, 0.75, 1];
-  function clearOf(top, hwT, under, hwU, side) {
-    const [tl, tr] = span(top, hwT);
-    const [ul, ur] = span(under, hwU);
-    const lo = Math.max(tl, ul);
-    const hi = Math.min(tr, ur);
-    if (lo >= hi) return true;
-    for (const k of SAMPLES) {
-      const c = side > 0 ? hi - 0.25 - k * (hi - lo - 0.5) : lo + 0.25 + k * (hi - lo - 0.5);
-      const dt = depthAt(top, hwT, c);
-      const du = depthAt(under, hwU, c);
-      if (dt !== null && du !== null && dt < du + 1) return false;
+    // For each hand-over from photo f (leaving, to the left) to f + 1 (arriving
+    // from the right): how far each swings so they're apart around the halfway
+    // point, then how deep the one underneath has to dip to stay tucked behind.
+    passes = [];
+    for (let f = 0; f < n - 1; f++) {
+      let swingA = 0;
+      let swingB = 0;
+      for (const t of [0.5 - WINDOW, 0.5, 0.5 + WINDOW]) {
+        const A = curve(f, f, t);
+        const B = curve(f + 1, f, t);
+        A.x -= PART * H * swingAt(t);
+        B.x += PART * H * swingAt(t);
+        swingA = Math.max(swingA, (steepest(A, half[f], +1) - A.a) / swingAt(t));
+        swingB = Math.min(swingB, (steepest(B, half[f + 1], -1) - B.a) / swingAt(t));
+      }
+      // the shallowest dip that keeps everything clean (too deep and it would sink behind
+      // the photo folded behind it, so step down from shallow rather than bisect)
+      passes[f] = { swingA, swingB, dip: 0 };
+      let best = { dip: 0, bad: passFaults(f) };
+      for (let dip = H * 0.02; best.bad && dip <= H * 1.5; dip += H * 0.02) {
+        passes[f].dip = dip;
+        const bad = passFaults(f);
+        if (bad < best.bad) best = { dip, bad };
+      }
+      // a little deeper still, as long as that stays clean: a margin between the samples checked
+      passes[f].dip = best.dip + H * 0.03;
+      if (best.bad || passFaults(f)) passes[f].dip = best.dip;
     }
-    return true;
   }
 
-  // slide card st (index i) along x, from where it wants to be toward `dir`, until it is clear of all `unders`
-  function slideClear(st, i, unders, side, dir) {
-    const ok = (x) => unders.every((j) => clearOf({ ...st, x }, half[i], states[j], half[j], side));
-    if (ok(st.x)) return st;
-    let good = st.x + dir * 4 * H;
-    let bad = st.x;
-    for (let k = 0; k < 24; k++) {
-      const mid = (good + bad) / 2;
-      if (ok(mid)) good = mid;
-      else bad = mid;
+  // the angle that just brings card st's inner edge (edge +1: its right edge, for a
+  // photo left of centre; -1: its left edge) clear of the centre line
+  function steepest(st, hw, edge) {
+    const reach = (a) => edge * screenX({ ...st, a }, edge * hw); // how far past the centre line the edge is
+    const goal = -GAP / 2;
+    if (reach(st.a) <= goal) return st.a;
+    let lo = st.a;
+    let hi = edge * 89; // turned almost edge-on
+    for (let k = 0; k < 30; k++) {
+      const mid = (lo + hi) / 2;
+      if (reach(mid) <= goal) hi = mid;
+      else lo = mid;
     }
-    return { ...st, x: good };
+    return hi;
   }
 
-  // every photo's state with the focus a fraction t of the way from photo f to f + 1
+  // how many times, through the hand-over from f to f + 1, a photo painted on top
+  // isn't in front of one it covers (checked for the photos around the pair)
+  function passFaults(f) {
+    let bad = 0;
+    for (let k = 1; k < 80; k++) {
+      const t = k / 80;
+      if (Math.abs(t - 0.5) < 1e-6) continue;
+      const p = f + t;
+      const all = flowAt(p);
+      for (let i = Math.max(0, f - 2); i <= Math.min(n - 1, f + 3); i++) {
+        for (let j = Math.max(0, f - 2); j <= Math.min(n - 1, f + 3); j++) {
+          if (Math.abs(i - p) >= Math.abs(j - p)) continue; // i is painted on top of j
+          if (!clearOf(all[i], half[i], all[j], half[j])) bad++;
+        }
+      }
+    }
+    return bad;
+  }
+
+  // resting state of photo i with focus f, extended smoothly past either end of the row
+  function key(f, i) {
+    if (f < 0) return extend(layouts[0][i], layouts[1][i], -f);
+    if (f > n - 1) return extend(layouts[n - 1][i], layouts[n - 2][i], f - (n - 1));
+    return layouts[f][i];
+  }
+  const extend = (a, b, k) => ({ x: a.x + (a.x - b.x) * k, z: a.z + (a.z - b.z) * k, a: a.a + (a.a - b.a) * k });
+
+  // photo i a fraction t of the way from focus f to f + 1, on a smooth curve through
+  // its resting states (so it flows on through each one without stopping) that
+  // never overshoots them (so photos that rest parallel stay parallel)
+  function curve(i, f, t) {
+    const p0 = key(f - 1, i);
+    const p1 = key(f, i);
+    const p2 = key(f + 1, i);
+    const p3 = key(f + 2, i);
+    return { x: mono(p0.x, p1.x, p2.x, p3.x, t), z: mono(p0.z, p1.z, p2.z, p3.z, t), a: mono(p0.a, p1.a, p2.a, p3.a, t) };
+  }
+
+  // how far through the swing each photo is, a fraction t of the way through the hand-over
+  const swingAt = (t) => Math.sin(Math.PI * t) ** 2;
+  // dips in over the first part of the hand-over, comes back up while the pair are apart
+  const dipAt = (t) => smooth(t / (0.5 - WINDOW)) * (1 - smooth((t - 0.5 + WINDOW) / (2 * WINDOW)));
+
+  // every photo's state with focus at (continuous) position p
   const states = [];
-  function layoutAt(f, t) {
-    const from = layouts[f];
-    const to = layouts[f + 1];
-    const A = f; // leaving the frame, to the left
-    const B = f + 1; // coming into the frame from the right
-    const p1 = smooth(t / 0.5);
-    const p2 = smooth((t - 0.5) / 0.5);
-    // each fold moves in step with the photo leading it: the left one with A in the
-    // first half, the right one with B in the second, so neither changes shape mid-move
-    for (let i = 0; i < n; i++) {
-      const k = i < A ? p1 : p2;
-      states[i] = { x: lerp(from[i].x, to[i].x, k), z: lerp(from[i].z, to[i].z, k), a: lerp(from[i].a, to[i].a, k) };
+  function flowAt(p) {
+    const base = Math.min(n - 1, Math.max(0, p));
+    const f = Math.min(n - 2, Math.floor(base));
+    const t = base - f;
+    for (let i = 0; i < n; i++) states[i] = curve(i, f, t);
+    // the pass: both swing steeper toward the middle, and the one underneath dips
+    // (the arriving one before the halfway point, the leaving one after)
+    const pass = passes[f];
+    if (pass && t > 0) {
+      const sw = swingAt(t);
+      states[f].a += pass.swingA * sw;
+      states[f + 1].a += pass.swingB * sw;
+      states[f].x -= PART * H * sw;
+      states[f + 1].x += PART * H * sw;
+      states[f].z -= pass.dip * dipAt(1 - t);
+      states[f + 1].z -= pass.dip * dipAt(t);
     }
-    // B waits, tucked where it was, until the halfway point, then comes forward
-    states[B] = { x: lerp(from[B].x, 0, p2), z: lerp(from[B].z, 0, p2), a: lerp(from[B].a, 0, p2) };
-    // A swings back by the halfway point, sliding left just far enough to have cleared B
-    // (two overlapping flat photos can't swap which is in front without passing
-    // through each other), then settles into its place in the left-hand fold
-    const ax = t < 0.5 ? lerp(0, meets[f], p1) : lerp(meets[f], to[A].x, p2);
-    states[A] = { x: ax, z: lerp(0, to[A].z, p1), a: lerp(0, to[A].a, p1) };
-    // keep A's trailing edge riding over the photos it covers on the right (never sinking into them) ...
-    const rights = [];
-    for (let j = t < 0.5 ? B : B + 1; j < n && j <= B + 3; j++) rights.push(j);
-    states[A] = slideClear(states[A], A, rights, +1, -1);
-    // ... and, once B is in front, B's trailing edge riding over the photos on its left
-    if (t >= 0.5) {
-      const lefts = [];
-      for (let j = A; j >= 0 && j >= A - 3; j--) lefts.push(j);
-      states[B] = slideClear(states[B], B, lefts, -1, +1);
-    }
+    // past either end of the row, everything slides together (rubber band)
+    const over = p - base;
+    if (over) for (const st of states) st.x -= (over * perItem * (P - st.z)) / P;
     return states;
   }
 
+  // ---------- drawing ----------
+
+  const drawn = []; // each photo's state as last drawn
+  const zs = [];
+  let centerShown = -1;
   function render() {
-    const base = Math.min(n - 1, Math.max(0, pos));
-    const over = pos - base; // rubber band past either end
-    const f = Math.min(n - 2, Math.floor(base));
-    const t = base - f;
-    const center = Math.round(base);
-    const all = layoutAt(f, t);
+    const all = flowAt(pos);
+    const center = Math.round(Math.min(n - 1, Math.max(0, pos)));
     for (let i = 0; i < n; i++) {
       const el = items[i];
-      // nearer the focus paints on top; the two moving photos swap exactly halfway, when they don't overlap
+      // nearer the focus paints on top; the two passing photos swap exactly halfway, when they don't overlap
       const d = Math.abs(i - pos);
-      el.style.zIndex = String(10000 - Math.round(d * 1000) + (d === 0.5 && i > pos ? 1 : 0));
-      el.classList.toggle('is-center', i === center);
+      const z = 10000 - Math.round(d * 1000) + (d === 0.5 && i > pos ? 1 : 0);
+      if (zs[i] !== z) el.style.zIndex = String((zs[i] = z));
       if (el === hero ? root.classList.contains('intro') : !opened) continue; // the opening owns these
       const st = all[i];
-      const x = st.x - (over * perItem * (P - st.z)) / P; // rubber band: same on-screen shift for all
-      el.style.transform = `perspective(${P}px) translate3d(${x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg)`;
-      drawn[i] = { x, z: st.z, a: st.a };
+      el.style.transform = `perspective(${P}px) translate3d(${st.x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg)`;
+      drawn[i] = { x: st.x, z: st.z, a: st.a };
+    }
+    if (center !== centerShown) {
+      items[centerShown]?.classList.remove('is-center');
+      items[center].classList.add('is-center');
+      centerShown = center;
     }
     if (placedOn) placeCaption(placedOn); // the caption stays on its photo
   }
-  const drawn = []; // each photo's state as last drawn
 
-  // ---------- settling on a photo ----------
+  // ---------- motion: one spring, fed by drags, flicks, scrolling, clicks and keys ----------
 
+  let vel = 0; // photos per second
+  let target = HOME; // where the spring is pulling (may be between photos while scrolling)
+  let stiffness = OMEGA;
+  let dragging = null;
   let raf = 0;
   let last = 0;
-  function step(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+
+  function frame(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    pos += (target - pos) * (1 - Math.exp(-dt * SNAP));
-    if (Math.abs(target - pos) < 0.0005) pos = target;
+    if (dragging) {
+      const prev = pos;
+      pos = rubber(dragging.pos0 - (dragging.x - dragging.x0) / perItem);
+      if (dt > 0) vel = vel * 0.6 + ((pos - prev) / dt) * 0.4;
+    } else {
+      // a slightly soft spring, in small steps so it's stable at any frame rate
+      const steps = Math.max(1, Math.ceil(dt / 0.004));
+      const h = dt / steps;
+      for (let k = 0; k < steps; k++) {
+        const acc = -stiffness * stiffness * (pos - target) - 2 * ZETA * stiffness * vel;
+        vel += acc * h;
+        pos += vel * h;
+      }
+      if (Math.abs(pos - target) < 0.0004 && Math.abs(vel) < 0.002) {
+        pos = target;
+        vel = 0;
+      }
+    }
     render();
-    raf = pos === target ? 0 : requestAnimationFrame(step);
-    if (!raf) settled();
-  }
-  function goTo(i) {
-    target = Math.min(n - 1, Math.max(0, Math.round(i)));
-    if (target !== pos) hideCaption();
-    if (reduced) {
-      pos = target;
-      render();
+    if (dragging || pos !== target || vel !== 0) raf = requestAnimationFrame(frame);
+    else {
+      raf = 0;
       settled();
-    } else if (!raf) {
-      last = performance.now();
-      raf = requestAnimationFrame(step);
     }
   }
-  function stop() {
-    cancelAnimationFrame(raf);
-    raf = 0;
+
+  function run() {
+    if (raf) return;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
   }
+
+  function goTo(i) {
+    target = Math.min(n - 1, Math.max(0, Math.round(i)));
+    stiffness = OMEGA;
+    if (Math.abs(target - pos) > 0.001 || Math.abs(vel) > 0.01) hideCaption();
+    if (reduced) {
+      pos = target;
+      vel = 0;
+      render();
+      settled();
+      return;
+    }
+    run();
+  }
+
   // resistance past the first and last photo
   function rubber(p) {
     if (p < 0) return p * 0.3;
     if (p > n - 1) return n - 1 + (p - (n - 1)) * 0.3;
     return p;
   }
+  function unrubber(p) {
+    if (p < 0) return p / 0.3;
+    if (p > n - 1) return n - 1 + (p - (n - 1)) / 0.3;
+    return p;
+  }
 
   // ---------- drag / swipe / click ----------
 
-  let drag = null;
   stage.addEventListener('pointerdown', (e) => {
     if (!interactive || (e.pointerType === 'mouse' && e.button !== 0)) return;
     root.classList.remove('deck-opening');
-    stop();
     hideCaption();
-    drag = { id: e.pointerId, x0: e.clientX, pos0: pos, moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
+    clearTimeout(wheelTimer);
+    wheelTimer = 0;
+    // grab the row wherever it is, even mid-glide
+    dragging = { id: e.pointerId, x0: e.clientX, x: e.clientX, pos0: unrubber(pos), moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
     stage.setPointerCapture(e.pointerId);
+    run();
   });
   stage.addEventListener('pointermove', (e) => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const dx = e.clientX - drag.x0;
-    if (Math.abs(dx) > 4) drag.moved = true;
-    drag.samples.push([e.timeStamp, e.clientX]);
-    if (drag.samples.length > 5) drag.samples.shift();
-    pos = rubber(drag.pos0 - dx / perItem);
-    render();
+    if (!dragging || e.pointerId !== dragging.id) return;
+    for (const ce of e.getCoalescedEvents?.() || [e]) dragging.samples.push([ce.timeStamp, ce.clientX]);
+    dragging.x = e.clientX;
+    if (Math.abs(dragging.x - dragging.x0) > 4) dragging.moved = true;
+    const cutoff = e.timeStamp - 120;
+    while (dragging.samples.length > 2 && dragging.samples[0][0] < cutoff) dragging.samples.shift();
   });
   function release(e) {
-    if (!drag || e.pointerId !== drag.id) return;
-    const d = drag;
-    drag = null;
+    if (!dragging || e.pointerId !== dragging.id) return;
+    const d = dragging;
+    dragging = null;
     if (!d.moved) {
       // a click: bring the photo that was clicked into the frame
       const i = items.indexOf(d.hit);
-      return goTo(i >= 0 ? i : pos);
+      vel = 0;
+      return goTo(i >= 0 ? i : Math.round(pos));
     }
-    // a flick carries on a little in the direction it was thrown
-    const [t0, x0] = d.samples[0];
-    const [t1, x1] = d.samples[d.samples.length - 1];
-    const v = t1 > t0 ? (x1 - x0) / (t1 - t0) : 0; // px per ms
-    goTo(pos - (v * 220) / perItem);
+    // the finger's speed over its last ~80 ms (least squares), carried into the spring
+    const recent = d.samples.filter(([t]) => t >= e.timeStamp - 80);
+    let v = 0;
+    if (recent.length >= 2 && e.timeStamp - recent[recent.length - 1][0] < 60) {
+      const mt = recent.reduce((a, [t]) => a + t, 0) / recent.length;
+      const mx = recent.reduce((a, [, x]) => a + x, 0) / recent.length;
+      let num = 0;
+      let den = 0;
+      for (const [t, x] of recent) {
+        num += (t - mt) * (x - mx);
+        den += (t - mt) ** 2;
+      }
+      v = den > 0 ? num / den : 0; // px per ms
+    }
+    vel = (-v * 1000) / perItem; // photos per second
+    if (pos < 0 || pos > n - 1) vel *= 0.3; // already stretched past an end
+    goTo(pos + vel * FLING);
   }
   stage.addEventListener('pointerup', release);
   stage.addEventListener('pointercancel', release);
 
   // ---------- trackpad / scroll wheel ----------
+  // Scroll events arrive unevenly, so instead of moving the row on each one they
+  // nudge where a stiff spring is heading; it glides there, then settles on a photo.
 
   let wheelTimer = 0;
   let wheelDir = 0;
@@ -300,26 +425,28 @@
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     if (!d) return;
     e.preventDefault();
-    stop();
+    if (dragging) return;
     hideCaption();
     const px = d * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerWidth : 1);
+    if (!wheelTimer) target = pos; // pick up from wherever the row is
     wheelDir = Math.sign(px);
-    pos = Math.min(n - 0.7, Math.max(-0.3, pos + px / (perItem * 1.2)));
-    render();
+    target = Math.min(n - 0.65, Math.max(-0.35, target + px / (perItem * 1.15)));
+    stiffness = FOLLOW;
+    run();
     clearTimeout(wheelTimer);
-    // once the scrolling stops, settle — leaning toward the direction it was going
+    // once the scrolling stops, settle on a photo, leaning the way it was going
     wheelTimer = setTimeout(() => {
       wheelTimer = 0;
-      goTo(Math.round(pos + wheelDir * 0.35));
-    }, 120);
+      goTo(target + wheelDir * 0.3);
+    }, 110);
   }, { passive: false });
 
   // ---------- keyboard ----------
 
   addEventListener('keydown', (e) => {
     if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'ArrowLeft') goTo(target - 1);
-    else if (e.key === 'ArrowRight') goTo(target + 1);
+    if (e.key === 'ArrowLeft') goTo(Math.round(target) - 1);
+    else if (e.key === 'ArrowRight') goTo(Math.round(target) + 1);
     else return;
     viaKeys = true;
     e.preventDefault();
@@ -335,10 +462,11 @@
   const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
   let shownFor = null; // photo whose caption is showing or about to
   let placedOn = null; // photo the caption is currently drawn on
-  const LIFT = 14; // px between the caption and the photo's top edge, in the photo's plane
+  let captionW = 0; // its width, measured when its text changes
   let pointer = null; // last mouse position
   let viaKeys = false;
   let swapTimer = 0;
+  const LIFT = 14; // px between the caption and the photo's top edge, in the photo's plane
 
   const photoAt = (x, y) => document.elementFromPoint(x, y)?.closest('.stage .card, .stage .hero') || null;
 
@@ -361,15 +489,13 @@
     if (!st) return;
     placedOn = el;
     // centre it over the part of the photo that's on screen (u runs along the photo's width)
-    const sr = stage.getBoundingClientRect();
-    const ox = sr.left + sr.width / 2;
     const c = Math.cos(st.a * RAD);
     const sn = Math.sin(st.a * RAD);
     const uAt = (sx) => ((sx * (P - st.z)) / P - st.x) / (c - (sx * sn) / P);
     const [vl, vr] = visibleSpan(i, 16 - ox, innerWidth - 16 - ox);
     const lo = Math.max(-half[i], uAt(vl));
     const hi = Math.min(half[i], uAt(vr));
-    const w = caption.offsetWidth;
+    const w = captionW;
     let u = (lo + hi) / 2;
     if (hi - lo >= w) u = Math.min(hi - w / 2, Math.max(lo + w / 2, u));
     // ... but never past the edges of the screen
@@ -380,9 +506,9 @@
     // passes over: a photo far out in the fold is lower than the taller ones in front of it.
     let lift = LIFT;
     const cl = screenX(st, u - w / 2);
-    const cr = screenX(st, u + w / 2);
+    const cr2 = screenX(st, u + w / 2);
     for (let k = 0; k <= 8; k++) {
-      const sx = cl + ((cr - cl) * k) / 8;
+      const sx = cl + ((cr2 - cl) * k) / 8;
       const zc = st.z - uAt(sx) * sn; // depth of this photo's plane at that column
       for (let j = 0; j < n; j++) {
         if (j === i || !drawn[j]) continue;
@@ -404,6 +530,7 @@
     shownFor = el;
     const show = () => {
       caption.textContent = el.dataset.caption;
+      captionW = caption.offsetWidth;
       placeCaption(el);
       caption.classList.add('is-shown');
     };
@@ -423,7 +550,7 @@
 
   // the row has come to rest
   function settled() {
-    if (!interactive || drag || wheelTimer) return;
+    if (!interactive || dragging || wheelTimer) return;
     if (!canHover || viaKeys) showCaption(items[target]);
     else if (pointer) showCaption(photoAt(pointer.x, pointer.y));
   }
@@ -432,7 +559,7 @@
     if (e.pointerType !== 'mouse') return;
     pointer = { x: e.clientX, y: e.clientY };
     viaKeys = false;
-    if (interactive && !drag && !raf && !wheelTimer) showCaption(photoAt(e.clientX, e.clientY));
+    if (interactive && !dragging && !raf && !wheelTimer) showCaption(photoAt(e.clientX, e.clientY));
   });
   document.documentElement.addEventListener('mouseleave', () => {
     pointer = null;
@@ -447,7 +574,7 @@
     // laid-out state so each one interpolates on its own
     for (const c of cards) {
       c.style.setProperty('--i', String(Math.abs(items.indexOf(c) - HOME) - 1));
-      c.style.transform = `perspective(${P}px) translate3d(0px, 0, ${FOLDED_Z}px) rotateY(0deg)`;
+      c.style.transform = `perspective(${P}px) translate3d(0px, 0, ${(-P * FOLDED) / (1 - FOLDED)}px) rotateY(0deg)`;
     }
     if (!reduced) root.classList.add('deck-opening');
     root.classList.add('deck-open');
@@ -467,10 +594,15 @@
   measure();
   render();
   root.classList.add('deck-ready');
+  let resizing = 0;
   addEventListener('resize', () => {
-    measure();
-    render();
-    if (placedOn) placeCaption(placedOn);
+    if (resizing) return;
+    resizing = requestAnimationFrame(() => {
+      resizing = 0;
+      measure();
+      if (placedOn) captionW = caption.offsetWidth;
+      render();
+    });
   });
 
   if (root.classList.contains('intro')) {
@@ -481,12 +613,23 @@
     ready();
   }
 
-  function lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
-
   function smooth(x) {
     const c = Math.min(1, Math.max(0, x));
     return c * c * (3 - 2 * c);
+  }
+
+  // monotone cubic (Steffen): between p1 and p2, with slopes from the neighbours either
+  // side, limited so the curve never bulges past its end values
+  function mono(p0, p1, p2, p3, t) {
+    const slope = (a, b, c) => {
+      const s0 = b - a;
+      const s1 = c - b;
+      return (Math.sign(s0) + Math.sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), Math.abs(s0 + s1) / 4);
+    };
+    const m1 = slope(p0, p1, p2);
+    const m2 = slope(p1, p2, p3);
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * p1 + (t3 - 2 * t2 + t) * m1 + (-2 * t3 + 3 * t2) * p2 + (t3 - t2) * m2;
   }
 })();
