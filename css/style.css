@@ -30,7 +30,7 @@ html {
 
 a,
 button,
-.deck-open .stage :is(.card:not(.is-center), .hero),
+.deck-open .stage :is(.card:not(.is-center), [data-video]),
 .player-video {
   cursor: url("../assets/cursor/hand.png") 10 0, pointer;
   cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 10 0, pointer;
@@ -114,9 +114,19 @@ body {
   transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
-/* folding back behind the selfie when the video opens: outer photos first */
-.deck-folding .card {
-  transition: transform 0.7s cubic-bezier(0.6, 0, 0.3, 1) calc(var(--j) * 50ms);
+/* folded away behind the photo in focus, for its video or the about view (js/coverflow.js):
+   they fade as they tuck in, outer ones first, and come back the way they opened */
+.stage .is-tucked {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.deck-folding .is-tucked {
+  transition: transform 0.7s cubic-bezier(0.6, 0, 0.3, 1) calc(var(--j) * 50ms), opacity 0.3s ease 0.45s;
+}
+
+.stage .is-unfolding {
+  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms), opacity 0.3s ease;
 }
 
 /* the hovered photo's caption: js/coverflow.js puts it in the photo's own 3D plane */
@@ -155,27 +165,33 @@ body {
 
 /* ---------- the video (js/player.js) ---------- */
 
-/* 16:9 at the selfie's height; it opens out from the selfie's 4:3 (12.5% in from each side) */
+/* as tall as the photo, it opens out from the photo's shape (--from, width / height) to the
+   video's (--to). The stage is as wide as the 4:3 selfie, so width r * 75% gives shape r. */
 .player {
   position: absolute;
   left: 50%;
   top: 0;
   z-index: 15000; /* above the photos */
   height: 100%;
-  aspect-ratio: 16 / 9;
+  width: calc(var(--from, 4 / 3) * 75%);
   translate: -50% 0;
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--ink);
   opacity: 0;
-  clip-path: inset(0 12.5% round var(--radius));
-  transition: clip-path 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
+  transition: width 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
 }
 
 .player.is-open {
+  width: calc(var(--to, 16 / 9) * 75%);
   opacity: 1;
-  clip-path: inset(0 0 round var(--radius));
-  transition: opacity 0.35s ease 0.25s, clip-path 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s;
+  transition: opacity 0.35s ease 0.25s, width 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s;
+}
+
+/* the photo under the player, once the player has faded in over it */
+.stage .is-behind-player {
+  visibility: hidden;
+  transition: visibility 0s 0.6s;
 }
 
 .player-video {

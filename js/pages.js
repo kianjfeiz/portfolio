@@ -9,7 +9,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const isAbout = (path) => /^\/about\/?$/.test(path);
-  const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: 'about' }));
+  const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: { by: 'about', selfie: true } }));
 
   let about = root.classList.contains('about-open'); // set in the page head, before the first paint
   let waiting = 0;
@@ -24,20 +24,17 @@
     return document.startViewTransition(update).finished;
   }
 
-  function setLayout(on) {
-    document.dispatchEvent(new Event('route')); // the video closes
-    root.classList.toggle('about-open', on);
-  }
+  const setLayout = (on) => root.classList.toggle('about-open', on);
 
   async function show(toAbout) {
     if (toAbout === about) return;
     about = toAbout;
     clearTimeout(waiting);
     if (toAbout) {
-      // fold the photos away first (unless they already are), then move
-      const stillOut = root.classList.contains('deck-open');
+      // fold the photos away behind the selfie first (closing a video that's playing), then move
       row('row-fold');
-      waiting = setTimeout(() => relayout(() => setLayout(true)), stillOut && !reduced ? FOLD_TIME : 0);
+      document.dispatchEvent(new Event('route'));
+      waiting = setTimeout(() => relayout(() => setLayout(true)), reduced ? 0 : FOLD_TIME);
     } else {
       await relayout(() => setLayout(false));
       if (!about) row('row-unfold'); // unless it went straight back to about

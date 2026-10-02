@@ -1,7 +1,8 @@
-// The video: clicking the selfie when it's in focus (or Enter) folds the other
-// photos away (js/coverflow.js) and the selfie opens out into this little player.
-// Space plays and pauses, Escape closes it, and it closes on its own when the page
-// moves to another view (js/pages.js).
+// The videos: clicking a photo with a video when it's in focus (or Enter) folds the
+// other photos away (js/coverflow.js) and the photo opens out into this little player,
+// shaped like its video, which starts playing straight away. Space plays and pauses,
+// Escape closes it, and it closes on its own when the page moves to another view
+// (js/pages.js).
 
 (() => {
   const player = document.querySelector('.player');
@@ -10,26 +11,37 @@
   const toggle = player.querySelector('.player-toggle');
   const close = player.querySelector('.player-close');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const CLOSE_TIME = 650; // ms to shrink back into the selfie, see .player in the CSS
+  const CLOSE_TIME = 650; // ms to shrink back into the photo, see .player in the CSS
 
   let open = false;
-  let closing = 0;
+  let photo = null; // the photo whose video is showing
+  let timers = [];
 
-  const play = () => video.play().catch(() => {});
-  const playPause = () => (video.paused ? play() : video.pause());
+  // with sound if the browser allows it, otherwise muted (a tap on the video turns it on)
+  const play = () => video.play().catch(() => ((video.muted = true), video.play())).catch(() => {});
+  const playPause = () => {
+    video.muted = false;
+    return video.paused ? play() : video.pause();
+  };
+  const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: { by: 'player' } }));
 
-  const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: 'player' }));
-
-  document.addEventListener('selfie-click', (e) => {
+  document.addEventListener('photo-click', (e) => {
     if (open) return;
     open = true;
-    clearTimeout(closing);
+    timers.forEach(clearTimeout);
+    photo = e.detail.photo;
+    if (video.getAttribute('src') !== photo.dataset.video) video.src = photo.dataset.video; // a new one starts from the top
+    video.setAttribute('aria-label', `Video: ${photo.alt}`);
     play(); // right away, while the click still lets it play with sound
     row('row-fold');
+    // open out from the photo's shape to the video's
+    player.style.setProperty('--from', String(photo.offsetWidth / photo.offsetHeight));
+    player.style.setProperty('--to', photo.dataset.videoRatio);
     player.hidden = false;
-    void player.offsetWidth; // flush styles so it opens out from the selfie
+    void player.offsetWidth; // flush styles so it opens out from the photo
     player.classList.add('is-open');
-    if (e.detail?.viaKeyboard) toggle.focus({ preventScroll: true });
+    photo.classList.add('is-behind-player');
+    if (e.detail.viaKeyboard) toggle.focus({ preventScroll: true });
   });
 
   function shut(now = false) {
@@ -37,12 +49,17 @@
     open = false;
     video.pause();
     player.classList.remove('is-open');
+    const back = () => photo.classList.remove('is-behind-player');
     const done = () => {
       player.hidden = true;
       row('row-unfold'); // the photos come back
     };
-    if (now || reduced) done();
-    else closing = setTimeout(done, CLOSE_TIME);
+    if (now || reduced) {
+      back();
+      done();
+    } else {
+      timers = [setTimeout(back, 400), setTimeout(done, CLOSE_TIME)]; // the photo is back before the player fades
+    }
   }
 
   // the button shows what it will do

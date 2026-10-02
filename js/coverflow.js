@@ -1,9 +1,9 @@
 // Cover Flow: the photos sit in a looping row, the one in focus flat in the middle
 // and the rest folded back on either side. Drag, swipe, scroll, click or use the
 // arrow keys to move along it. The row unfolds as the opening lands (js/intro.js),
-// and folds away behind the selfie whenever another part of the page asks it to
-// ('row-fold' and 'row-unfold' events: the video in js/player.js, the about view in
-// js/pages.js).
+// and folds away behind the photo in focus whenever another part of the page asks it
+// to ('row-fold' and 'row-unfold' events: a photo's video in js/player.js, the about
+// view in js/pages.js).
 
 (() => {
   const ANGLE = 34; // degrees a side photo folds back
@@ -279,7 +279,8 @@
 
   let pos = HOME; // which photo is in focus (continuous)
   let opened = false;
-  let folded = false; // tucked away behind the selfie (for the video, or the about view)
+  let folded = false; // tucked away behind the photo in focus (for its video, or the about view)
+  let kept = -1; // the photo left out while the rest are folded away
   let interactive = false;
   const drawn = []; // each photo's state as last drawn
   const ranks = []; // how far each is from the focus as last drawn
@@ -303,7 +304,8 @@
         el.style.visibility = o === 0 ? 'hidden' : '';
         opacities[i] = o;
       }
-      if (el === hero ? root.classList.contains('intro') : !opened || folded) continue; // opening or folded away
+      if (el === hero ? root.classList.contains('intro') : !opened) continue; // still opening
+      if (folded && i !== kept) continue; // folded away
       el.style.transform = `perspective(${P}px) translate3d(${st.x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg)`;
       drawn[i] = { ...st };
     }
@@ -382,6 +384,7 @@
     hideCaption();
     clearTimeout(wheelTimer);
     wheelTimer = 0;
+    clicked = null;
     dragging = { id: e.pointerId, x0: e.clientX, x: e.clientX, pos0: pos, moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
     stage.setPointerCapture(e.pointerId);
     run();
@@ -400,11 +403,15 @@
     const d = dragging;
     dragging = null;
     if (!d.moved) {
-      // a click: bring that photo into focus, the short way round (or play the selfie's video)
+      // a click: bring that photo into focus, the short way round (or, if it's already
+      // in focus and has a video, play that on the click event that follows)
       const i = items.indexOf(d.hit);
       const here = Math.round(pos);
       vel = 0;
-      if (i === HOME && offset(i, here) === 0) return clickSelfie(false);
+      if (i >= 0 && offset(i, here) === 0 && d.hit.dataset.video) {
+        clicked = d.hit;
+        return;
+      }
       return goTo(i >= 0 ? here + offset(i, here) : here);
     }
     vel = (-fingerSpeed(d.samples, e.timeStamp) * 1000) / perItem;
@@ -412,6 +419,14 @@
   }
   stage.addEventListener('pointerup', release);
   stage.addEventListener('pointercancel', release);
+
+  // Phones only let a video start with sound from a real click, so the video opens on
+  // the click event rather than when the finger lifts.
+  let clicked = null;
+  stage.addEventListener('click', () => {
+    if (clicked) playVideo(clicked, false);
+    clicked = null;
+  });
 
   // the finger's speed over its last 80 ms in px per ms (least squares), or 0 if it stopped
   function fingerSpeed(samples, now) {
@@ -461,7 +476,7 @@
     if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'ArrowLeft') goTo(Math.round(target) - 1);
     else if (e.key === 'ArrowRight') goTo(Math.round(target) + 1);
-    else if (e.key === 'Enter' && e.target === document.body && offset(HOME, Math.round(target)) === 0) return clickSelfie(true);
+    else if (e.key === 'Enter' && e.target === document.body && items[mod(Math.round(target), n)].dataset.video) return playVideo(items[mod(Math.round(target), n)], true);
     else return;
     viaKeys = true;
     e.preventDefault();
@@ -585,7 +600,6 @@
     for (const c of cards) {
       const i = Math.abs(offset(items.indexOf(c), HOME)) - 1; // 0 for the photos either side of the selfie
       c.style.setProperty('--i', String(i));
-      c.style.setProperty('--j', String(SEAM - 1 - i));
       c.style.transform = tuckedAway();
     }
     if (folded) return; // it stays folded away for now (the page opened on the about view)
@@ -605,36 +619,44 @@
     settled();
   }
 
-  // the selfie in focus was clicked: js/player.js plays its video. Sent right away,
-  // while this still counts as the click that lets the video play with sound.
-  const clickSelfie = (viaKeyboard) => document.dispatchEvent(new CustomEvent('selfie-click', { detail: { viaKeyboard } }));
+  // the photo in focus has a video and was clicked: js/player.js plays it. Sent right
+  // away, while this still counts as the click that lets the video play with sound.
+  const playVideo = (photo, viaKeyboard) => document.dispatchEvent(new CustomEvent('photo-click', { detail: { photo, viaKeyboard } }));
 
-  // ---------- folding away behind the selfie (for the video, or the about view) ----------
+  // ---------- folding away behind the photo in focus (for its video, or the about view) ----------
 
   const holds = new Set(); // what wants the row folded away right now
   let foldTimer = 0;
 
   document.addEventListener('row-fold', (e) => {
-    holds.add(e.detail);
-    fold();
+    holds.add(e.detail.by);
+    fold(e.detail.selfie);
   });
   document.addEventListener('row-unfold', (e) => {
-    holds.delete(e.detail);
+    holds.delete(e.detail.by);
     if (!holds.size) unfold();
   });
 
-  function fold() {
+  // fold everything else away behind the photo in focus (or the selfie, brought back to the middle)
+  function fold(toSelfie) {
     interactive = false;
     hideCaption();
     const here = Math.round(pos);
-    goTo(here + offset(HOME, here)); // bring the selfie back to the middle
-    if (folded) return;
+    goTo(toSelfie ? here + offset(HOME, here) : here);
+    const keep = mod(target, n);
+    if (folded && keep === kept) return;
     folded = true;
+    kept = keep; // (if it was already folded around another photo, that one tucks away now)
     clearTimeout(foldTimer);
     const animate = opened && !reduced;
     if (animate) root.classList.add('deck-folding');
-    for (const c of cards) c.style.transform = tuckedAway();
-    foldTimer = setTimeout(() => root.classList.remove('deck-folding', 'deck-open'), animate ? FOLD_TIME : 0);
+    items.forEach((el, i) => {
+      el.classList.toggle('is-tucked', i !== kept);
+      if (i === kept) return;
+      el.style.setProperty('--j', String(SEAM - Math.abs(offset(i, kept)))); // outer ones first
+      el.style.transform = tuckedAway();
+    });
+    foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FOLD_TIME : 0);
   }
 
   function unfold() {
@@ -644,10 +666,15 @@
     measure(); // the selfie may have changed size while the row was away
     root.classList.remove('deck-folding');
     root.classList.add('deck-open');
-    if (!reduced) root.classList.add('deck-opening');
+    const back = items.filter((el) => el.classList.contains('is-tucked'));
+    for (const el of back) {
+      el.style.setProperty('--i', String(Math.abs(offset(items.indexOf(el), kept)) - 1)); // inner ones first
+      el.classList.remove('is-tucked');
+      if (!reduced) el.classList.add('is-unfolding');
+    }
     render();
     foldTimer = setTimeout(() => {
-      root.classList.remove('deck-opening');
+      for (const el of back) el.classList.remove('is-unfolding');
       ready();
     }, reduced ? 0 : UNFOLD_TIME);
   }
