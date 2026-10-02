@@ -5,14 +5,13 @@
 
 (() => {
   const root = document.documentElement;
-  const FOLD_TIME = 900; // ms for the photos to fold away, see .deck-folding in the CSS
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const isAbout = (path) => /^\/about\/?$/.test(path);
   const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: { by: 'about', selfie: true } }));
 
   let about = root.classList.contains('about-open'); // set in the page head, before the first paint
-  let waiting = 0;
+  let turn = 0; // which click the page is answering
   if (about) row('row-fold');
 
   // change the layout, letting the browser glide everything to its new place where it can
@@ -29,12 +28,13 @@
   async function show(toAbout) {
     if (toAbout === about) return;
     about = toAbout;
-    clearTimeout(waiting);
+    const mine = ++turn;
     if (toAbout) {
-      // fold the photos away behind the selfie first (closing a video that's playing), then move
+      // the row spins back to the selfie and folds away behind it (closing a video that's
+      // playing), then everything moves
+      document.addEventListener('row-folded', () => mine === turn && relayout(() => setLayout(true)), { once: true });
       row('row-fold');
       document.dispatchEvent(new Event('route'));
-      waiting = setTimeout(() => relayout(() => setLayout(true)), reduced ? 0 : FOLD_TIME);
     } else {
       await relayout(() => setLayout(false));
       if (!about) row('row-unfold'); // unless it went straight back to about

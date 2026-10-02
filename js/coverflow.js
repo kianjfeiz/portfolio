@@ -38,6 +38,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const UNFOLD_TIME = 1300 + (SEAM - 1) * 90 + 50; // ms, see .deck-opening in the CSS
   const FOLD_TIME = 700 + (SEAM - 1) * 50 + 50; // ms, see .deck-folding
+  const FADED = 750; // ms until the folding photos have faded out, see .deck-folding .is-tucked
 
   const mod = (a, m) => ((a % m) + m) % m;
 
@@ -348,12 +349,22 @@
       }
     }
     render();
+    if (arrived && Math.abs(pos - target) < 0.01) arrive(); // as good as there
     if (dragging || pos !== target || vel !== 0) {
       raf = requestAnimationFrame(frame);
     } else {
       raf = 0;
+      arrive();
       settled();
     }
+  }
+
+  // what to do once the row gets where goTo sent it
+  let arrived = null;
+  function arrive() {
+    const then = arrived;
+    arrived = null;
+    then?.();
   }
 
   function run() {
@@ -362,14 +373,17 @@
     raf = requestAnimationFrame(frame);
   }
 
-  function goTo(i) {
+  // glide to photo i (then, optionally, do something once it's there)
+  function goTo(i, then = null, k = OMEGA) {
     target = Math.round(i);
-    stiffness = OMEGA;
+    stiffness = k;
+    arrived = then;
     if (Math.abs(target - pos) > 0.001 || Math.abs(vel) > 0.01) hideCaption();
     if (reduced) {
       pos = target;
       vel = 0;
       render();
+      arrive();
       settled();
       return;
     }
@@ -627,6 +641,7 @@
 
   const holds = new Set(); // what wants the row folded away right now
   let foldTimer = 0;
+  let fading = false; // the photos are still fading out as they fold
 
   document.addEventListener('row-fold', (e) => {
     holds.add(e.detail.by);
@@ -637,30 +652,54 @@
     if (!holds.size) unfold();
   });
 
-  // fold everything else away behind the photo in focus (or the selfie, brought back to the middle)
+  // Fold everything else away behind the photo in focus. For the selfie (the about view),
+  // spin the row back round to it first. Says 'row-folded' once it's done.
   function fold(toSelfie) {
     interactive = false;
     hideCaption();
+    clearTimeout(wheelTimer); // a scroll that was about to settle somewhere else
+    wheelTimer = 0;
     const here = Math.round(pos);
-    goTo(toSelfie ? here + offset(HOME, here) : here);
-    const keep = mod(target, n);
-    if (folded && keep === kept) return;
+    const goal = toSelfie ? here + offset(HOME, here) : here;
+    if (folded && mod(goal, n) !== kept) {
+      // folded around another photo (its video was open): bring the row back out to spin it
+      folded = false;
+      for (const el of items) el.classList.remove('is-tucked', 'is-unfolding');
+    }
+    goTo(goal, tuck, goal === here ? OMEGA : FOLLOW);
+  }
+
+  function tuck() {
+    if (!holds.size) return; // asked to unfold again while it was on its way
+    if (folded) {
+      if (!fading) announceFolded(); // (otherwise it will once they've faded)
+      return;
+    }
     folded = true;
-    kept = keep; // (if it was already folded around another photo, that one tucks away now)
-    clearTimeout(foldTimer);
+    kept = mod(target, n);
     const animate = opened && !reduced;
     if (animate) root.classList.add('deck-folding');
+    fading = true;
     items.forEach((el, i) => {
-      el.classList.toggle('is-tucked', i !== kept);
       if (i === kept) return;
       el.style.setProperty('--j', String(SEAM - Math.abs(offset(i, kept)))); // outer ones first
       el.style.transform = tuckedAway();
+      el.classList.add('is-tucked');
     });
-    foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FOLD_TIME : 0);
+    clearTimeout(foldTimer);
+    foldTimer = setTimeout(() => {
+      fading = false;
+      announceFolded(); // they've faded out: the page can move on while they finish tucking in
+      foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FOLD_TIME - FADED : 0);
+    }, animate ? FADED : 0);
   }
 
+  const announceFolded = () => document.dispatchEvent(new Event('row-folded'));
+
   function unfold() {
-    if (!folded) return;
+    arrived = null; // a fold still on its way doesn't happen
+    fading = false;
+    if (!folded) return ready();
     folded = false;
     clearTimeout(foldTimer);
     measure(); // the selfie may have changed size while the row was away
