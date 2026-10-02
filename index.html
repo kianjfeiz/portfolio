@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
   <link rel="stylesheet" href="css/style.css">
-  <!-- flag the intro before first paint so the final layout never flashes -->
+  <!-- set before first paint so the final layout never flashes -->
   <script>if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro');</script>
   <script src="js/intro.js" defer></script>
   <script src="js/coverflow.js" defer></script>
@@ -16,7 +16,7 @@
 <body class="home">
   <main class="frame">
     <div class="stage" role="group" aria-label="Photos: drag, scroll or use the arrow keys to browse">
-      <!-- the rest of the row (js/coverflow.js): inner to outer on each side of the main photo -->
+      <!-- the rest of the row, inner to outer on each side (js/coverflow.js) -->
       <div class="deck">
         <img class="card" draggable="false" data-side="left" src="assets/img/stack/lac-blanc.jpg" data-caption="Lac Blanc, Chamonix, France. September 2026." width="1400" height="1050" alt="A still alpine lake below Mont Blanc" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="assets/img/stack/snowy-pines.jpg" data-caption="Steamboat, Colorado. February 2026." width="1050" height="1400" alt="Snow-covered pines under a deep blue sky" fetchpriority="low">
@@ -29,7 +29,6 @@
         <img class="card" draggable="false" data-side="right" src="assets/img/stack/snowed-in.jpg" data-caption="Snowbird, Utah. Snowed 40 inches in 2 days! December 2025." width="787" height="1400" alt="A snowboard next to a snowed-in car" fetchpriority="low">
       </div>
       <img class="hero" data-caption="Jackson, Wyoming. Ran out of gas on the way to the city. Spring break 2026." src="assets/img/kian-2000.jpg" srcset="assets/img/kian-1200.jpg 1200w, assets/img/kian-2000.jpg 2000w, assets/img/kian-4000.jpg 4000w" sizes="100vw" alt="Kian taking a selfie in front of a snow-capped mountain range" fetchpriority="high" draggable="false">
-      <!-- the hovered photo's caption, drawn in the same 3D plane as the photo (js/coverflow.js) -->
       <p class="caption" aria-live="polite"></p>
     </div>
 

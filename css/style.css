@@ -2,6 +2,7 @@
   --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --ink: #111;
   --paper: #fdfdfc;
+  --radius: clamp(8px, 1vw, 14px);
 }
 
 *,
@@ -16,7 +17,7 @@ body {
   min-height: 100%;
 }
 
-/* chunky pixel-art cursors: each art pixel is 2 CSS px (2x files for retina); see assets/cursor */
+/* pixel-art cursors, with 2x files for retina */
 html {
   cursor: url("../assets/cursor/arrow.png") 0 0, auto;
   cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 0 0, auto;
@@ -43,8 +44,7 @@ body {
   overflow: hidden;
 }
 
-/* <main> centres itself at full screen height, so elements that browser
-   extensions inject into <body> land below it instead of shifting the layout */
+/* centred here rather than on <body>, which browser extensions inject into */
 .frame {
   min-height: 100svh;
   display: flex;
@@ -57,16 +57,11 @@ body {
 
 .stage {
   position: relative;
-  touch-action: pan-y; /* horizontal swipes browse the photos */
+  touch-action: pan-y; /* horizontal swipes move the photos */
   -webkit-user-select: none;
   user-select: none;
 }
 
-.stage img {
-  -webkit-user-drag: none;
-}
-
-/* 4:3 like the photo, so scaling it up to fill the screen matches object-fit: cover */
 .hero {
   position: relative;
   display: block;
@@ -74,13 +69,11 @@ body {
   height: auto;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: clamp(8px, 1vw, 14px);
-  /* stay on the GPU layer the opening animation used: dropping it when the animation
-     ends re-draws the photo snapped to whole pixels, which reads as a jitter */
-  will-change: transform;
+  border-radius: var(--radius);
+  will-change: transform; /* stops a jitter when the opening animation ends */
 }
 
-/* ---------- cover flow: the row of photos around the main one (js/coverflow.js) ---------- */
+/* ---------- cover flow (js/coverflow.js) ---------- */
 
 .deck {
   position: absolute;
@@ -88,8 +81,7 @@ body {
   display: none;
 }
 
-/* hidden until it unfolds: otherwise the cards show in the middle of the page
-   while the main photo is still loading */
+/* hidden until it unfolds, so it can't show before the main photo loads */
 .deck-ready .deck {
   display: block;
   visibility: hidden;
@@ -107,9 +99,8 @@ body {
   height: var(--h);
   margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
   object-fit: cover;
-  border-radius: clamp(8px, 1vw, 14px); /* same as the main photo: any of them can be in focus */
-  /* folded away behind the main photo until it opens; js/coverflow.js positions them after that */
-  transform: perspective(1100px) translate3d(0px, 0, -180px) rotateY(0deg);
+  border-radius: var(--radius);
+  transform: perspective(1100px) translate3d(0px, 0, -180px) rotateY(0deg); /* folded behind the main photo */
   will-change: transform;
 }
 
@@ -117,14 +108,13 @@ body {
   transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
-/* caption of the hovered photo: js/coverflow.js gives it the photo's own 3D transform,
-   so it sits just above the photo's top edge and leans with it; eases in from a soft blur */
+/* the hovered photo's caption: js/coverflow.js puts it in the photo's own 3D plane */
 .caption {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform-origin: 0 0; /* the stage centre, the same origin the photos turn about */
-  z-index: 20000; /* above every photo */
+  transform-origin: 0 0;
+  z-index: 20000;
   width: max-content;
   max-width: min(30rem, calc(100vw - 2rem));
   margin: 0;
@@ -151,6 +141,8 @@ body {
     transition-duration: 0.15s;
   }
 }
+
+/* ---------- name and links ---------- */
 
 .nav {
   display: flex;
@@ -180,7 +172,8 @@ body {
   outline: none;
 }
 
-/* intro (see js/intro.js): photo hidden until decoded, then shown full-bleed above everything */
+/* ---------- the opening (js/intro.js) ---------- */
+
 .intro .hero {
   z-index: 30;
   opacity: 0;
