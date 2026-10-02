@@ -30,7 +30,8 @@
   const items = [...left, hero, ...right];
   const HOME = left.length;
   const n = items.length;
-  const REACH = Math.floor(n / 2) + 2; // how many places out either side get a resting spot
+  const SEAM = Math.floor(n / 2); // the loop joins up just past this many places to the right
+  const REACH = SEAM + 2; // how many places out either side get a resting spot
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const mod = (a, m) => ((a % m) + m) % m;
@@ -41,8 +42,8 @@
     return d <= -n / 2 ? d + n : d;
   }
 
-  // the photo directly opposite the focus is hidden, so the loop's seam never shows
-  const shownAt = (d) => smooth(n / 2 - Math.abs(d));
+  // photos fade out toward the seam and are hidden at it, so none is seen jumping across
+  const shownAt = (d) => smooth(Math.min(SEAM - d, d - SEAM + n));
 
   // A photo's state is { x, z, a, o }: x and depth in px, rotateY in degrees, and
   // opacity. Side photos sit genuinely further back rather than being scaled, so
@@ -558,7 +559,7 @@
     void stage.offsetWidth; // flush styles so the transition starts from the folded state
     opened = true;
     render();
-    const longest = 1300 + Math.max(left.length, right.length) * 90;
+    const longest = 1300 + (SEAM - 1) * 90;
     setTimeout(() => root.classList.remove('deck-opening'), longest + 50);
   }
 
