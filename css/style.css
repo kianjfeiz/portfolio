@@ -117,11 +117,13 @@ body {
   transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
-/* caption of the hovered photo, centred over it just above the row; eases in from a soft blur */
+/* caption of the hovered photo: js/coverflow.js gives it the photo's own 3D transform,
+   so it sits just above the photo's top edge and leans with it; eases in from a soft blur */
 .caption {
-  position: fixed;
-  left: 0;
-  top: 0;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 0 0; /* the stage centre, the same origin the photos turn about */
   z-index: 20000; /* above every photo */
   width: max-content;
   max-width: min(30rem, calc(100vw - 2rem));
@@ -131,7 +133,6 @@ body {
   text-align: center;
   text-wrap: balance;
   pointer-events: none;
-  transform: translate(calc(var(--cx, 0px) - 50%), calc(var(--cy, 0px) - 100%));
   opacity: 0;
   filter: blur(6px);
   transition: opacity 0.18s ease, filter 0.18s ease;

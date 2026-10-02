@@ -211,8 +211,11 @@
       const st = all[i];
       const x = st.x - (over * perItem * (P - st.z)) / P; // rubber band: same on-screen shift for all
       el.style.transform = `perspective(${P}px) translate3d(${x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg)`;
+      drawn[i] = { x, z: st.z, a: st.a };
     }
+    if (placedOn) placeCaption(placedOn); // the caption stays on its photo
   }
+  const drawn = []; // each photo's state as last drawn
 
   // ---------- settling on a photo ----------
 
@@ -323,31 +326,75 @@
   });
 
   // ---------- captions ----------
-  // The hovered photo's caption appears centred over it, just above the row, and
-  // hides while the row moves. Without a mouse (touch screens) or after using the
-  // arrow keys, it's the caption of the photo in focus.
+  // The hovered photo's caption appears just above it, drawn in the photo's own 3D
+  // plane so it leans and recedes with it (and rides along if the row moves while it
+  // fades). It hides while the row moves. Without a mouse (touch screens) or after
+  // using the arrow keys, it's the caption of the photo in focus.
 
   const caption = document.querySelector('.caption');
   const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
   let shownFor = null; // photo whose caption is showing or about to
+  let placedOn = null; // photo the caption is currently drawn on
+  const LIFT = 14; // px between the caption and the photo's top edge, in the photo's plane
   let pointer = null; // last mouse position
   let viaKeys = false;
   let swapTimer = 0;
 
   const photoAt = (x, y) => document.elementFromPoint(x, y)?.closest('.stage .card, .stage .hero') || null;
 
-  function placeCaption(el) {
-    const r = el.getBoundingClientRect();
-    let top = r.top; // sit above the whole row, so it never covers a photo
-    for (const it of items) {
-      const b = it.getBoundingClientRect();
-      if (b.right > 0 && b.left < innerWidth) top = Math.min(top, b.top);
+  // the widest stretch of photo i (in screen x from the stage centre) not covered by a photo painted above it
+  function visibleSpan(i, minX, maxX) {
+    let segs = [[Math.max(minX, screenX(drawn[i], -half[i])), Math.min(maxX, screenX(drawn[i], half[i]))]];
+    const d = Math.abs(i - pos);
+    for (let j = 0; j < n; j++) {
+      if (j === i || !drawn[j] || Math.abs(j - pos) >= d) continue;
+      const l = screenX(drawn[j], -half[j]);
+      const r = screenX(drawn[j], half[j]);
+      segs = segs.flatMap(([a, b]) => [[a, Math.min(b, l)], [Math.max(a, r), b]]).filter(([a, b]) => b - a > 1);
     }
-    const mid = (Math.max(r.left, 0) + Math.min(r.right, innerWidth)) / 2; // over the part you can see
+    return segs.reduce((best, sg) => (sg[1] - sg[0] > best[1] - best[0] ? sg : best), [0, 0]);
+  }
+
+  function placeCaption(el) {
+    const i = items.indexOf(el);
+    const st = drawn[i];
+    if (!st) return;
+    placedOn = el;
+    // centre it over the part of the photo that's on screen (u runs along the photo's width)
+    const sr = stage.getBoundingClientRect();
+    const ox = sr.left + sr.width / 2;
+    const c = Math.cos(st.a * RAD);
+    const sn = Math.sin(st.a * RAD);
+    const uAt = (sx) => ((sx * (P - st.z)) / P - st.x) / (c - (sx * sn) / P);
+    const [vl, vr] = visibleSpan(i, 16 - ox, innerWidth - 16 - ox);
+    const lo = Math.max(-half[i], uAt(vl));
+    const hi = Math.min(half[i], uAt(vr));
     const w = caption.offsetWidth;
-    const cx = Math.min(innerWidth - 16 - w / 2, Math.max(16 + w / 2, mid));
-    caption.style.setProperty('--cx', `${cx.toFixed(1)}px`);
-    caption.style.setProperty('--cy', `${(top - 14).toFixed(1)}px`);
+    let u = (lo + hi) / 2;
+    if (hi - lo >= w) u = Math.min(hi - w / 2, Math.max(lo + w / 2, u));
+    // ... but never past the edges of the screen
+    const sMin = uAt(16 - ox) + w / 2;
+    const sMax = uAt(innerWidth - 16 - ox) - w / 2;
+    if (sMin <= sMax) u = Math.min(sMax, Math.max(sMin, u));
+    // Raise it (still in the photo's plane) until it clears the top edge of every photo it
+    // passes over: a photo far out in the fold is lower than the taller ones in front of it.
+    let lift = LIFT;
+    const cl = screenX(st, u - w / 2);
+    const cr = screenX(st, u + w / 2);
+    for (let k = 0; k <= 8; k++) {
+      const sx = cl + ((cr - cl) * k) / 8;
+      const zc = st.z - uAt(sx) * sn; // depth of this photo's plane at that column
+      for (let j = 0; j < n; j++) {
+        if (j === i || !drawn[j]) continue;
+        const zo = depthAt(drawn[j], half[j], sx);
+        if (zo === null) continue;
+        // the other photo's top edge, carried back into this plane, plus a little air (10 px on screen)
+        lift = Math.max(lift, ((H / 2) * (P - zc)) / (P - zo) - H / 2 + (10 * (P - zc)) / P);
+      }
+    }
+    caption.style.transform =
+      `perspective(${P}px) translate3d(${st.x.toFixed(2)}px, 0, ${st.z.toFixed(2)}px) rotateY(${st.a.toFixed(3)}deg) ` +
+      `translate(${u.toFixed(1)}px, ${(-H / 2 - lift).toFixed(1)}px) translate(-50%, -100%)`;
   }
 
   function showCaption(el) {
@@ -423,7 +470,7 @@
   addEventListener('resize', () => {
     measure();
     render();
-    if (shownFor) placeCaption(shownFor);
+    if (placedOn) placeCaption(placedOn);
   });
 
   if (root.classList.contains('intro')) {
