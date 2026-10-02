@@ -1,7 +1,9 @@
 // Cover Flow: the photos sit in a looping row, the one in focus flat in the middle
 // and the rest folded back on either side. Drag, swipe, scroll, click or use the
 // arrow keys to move along it. The row unfolds as the opening lands (js/intro.js),
-// and folds away again while the selfie plays its video (js/player.js).
+// and folds away behind the selfie whenever another part of the page asks it to
+// ('row-fold' and 'row-unfold' events: the video in js/player.js, the about view in
+// js/pages.js).
 
 (() => {
   const ANGLE = 34; // degrees a side photo folds back
@@ -22,7 +24,6 @@
   const stage = document.querySelector('.stage');
   const hero = document.querySelector('.hero');
   const caption = document.querySelector('.caption');
-  const player = document.querySelector('.player');
   const cards = [...document.querySelectorAll('.deck .card')];
   if (!stage || !hero || !cards.length) return;
 
@@ -255,7 +256,7 @@
 
   let pos = HOME; // which photo is in focus (continuous)
   let opened = false;
-  let folded = false; // tucked away behind the selfie while its video plays
+  let folded = false; // tucked away behind the selfie (for the video, or the about view)
   let interactive = false;
   const drawn = []; // each photo's state as last drawn
   const ranks = []; // how far each is from the focus as last drawn
@@ -380,7 +381,7 @@
       const i = items.indexOf(d.hit);
       const here = Math.round(pos);
       vel = 0;
-      if (player && i === HOME && offset(i, here) === 0) return fold();
+      if (i === HOME && offset(i, here) === 0) return clickSelfie(false);
       return goTo(i >= 0 ? here + offset(i, here) : here);
     }
     vel = (-fingerSpeed(d.samples, e.timeStamp) * 1000) / perItem;
@@ -437,7 +438,7 @@
     if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'ArrowLeft') goTo(Math.round(target) - 1);
     else if (e.key === 'ArrowRight') goTo(Math.round(target) + 1);
-    else if (e.key === 'Enter' && e.target === document.body && player && offset(HOME, Math.round(target)) === 0) return fold(true);
+    else if (e.key === 'Enter' && e.target === document.body && offset(HOME, Math.round(target)) === 0) return clickSelfie(true);
     else return;
     viaKeys = true;
     e.preventDefault();
@@ -556,6 +557,7 @@
 
   function open() {
     if (opened) return;
+    opened = true;
     // start folded behind the main photo, then let the CSS transition unfold them
     for (const c of cards) {
       const i = Math.abs(offset(items.indexOf(c), HOME)) - 1; // 0 for the photos either side of the selfie
@@ -563,10 +565,10 @@
       c.style.setProperty('--j', String(SEAM - 1 - i));
       c.style.transform = tuckedAway();
     }
+    if (folded) return; // it stays folded away for now (the page opened on the about view)
     if (!reduced) root.classList.add('deck-opening');
     root.classList.add('deck-open');
     void stage.offsetWidth; // flush styles so the transition starts from the folded state
-    opened = true;
     render();
     setTimeout(() => root.classList.remove('deck-opening'), UNFOLD_TIME);
   }
@@ -574,29 +576,49 @@
   const tuckedAway = () => `perspective(${P}px) translate3d(0px, 0, ${(-P * FOLDED) / (1 - FOLDED)}px) rotateY(0deg)`;
 
   function ready() {
+    if (folded || root.classList.contains('intro')) return; // not yet: it's folded away, or still opening
     interactive = true;
     render();
     settled();
   }
 
-  // ---------- the video: the row folds away behind the selfie, then comes back ----------
+  // the selfie in focus was clicked: js/player.js plays its video. Sent right away,
+  // while this still counts as the click that lets the video play with sound.
+  const clickSelfie = (viaKeyboard) => document.dispatchEvent(new CustomEvent('selfie-click', { detail: { viaKeyboard } }));
 
+  // ---------- folding away behind the selfie (for the video, or the about view) ----------
+
+  const holds = new Set(); // what wants the row folded away right now
   let foldTimer = 0;
 
-  function fold(viaKeyboard = false) {
+  document.addEventListener('row-fold', (e) => {
+    holds.add(e.detail);
+    fold();
+  });
+  document.addEventListener('row-unfold', (e) => {
+    holds.delete(e.detail);
+    if (!holds.size) unfold();
+  });
+
+  function fold() {
     interactive = false;
+    hideCaption();
+    const here = Math.round(pos);
+    goTo(here + offset(HOME, here)); // bring the selfie back to the middle
+    if (folded) return;
     folded = true;
-    goTo(Math.round(pos)); // settle the selfie exactly in place
-    if (!reduced) root.classList.add('deck-folding');
+    clearTimeout(foldTimer);
+    const animate = opened && !reduced;
+    if (animate) root.classList.add('deck-folding');
     for (const c of cards) c.style.transform = tuckedAway();
-    // straight away, while this still counts as the click that lets the video play with sound
-    document.dispatchEvent(new CustomEvent('player-open', { detail: { viaKeyboard } }));
-    foldTimer = setTimeout(() => root.classList.remove('deck-folding', 'deck-open'), reduced ? 0 : FOLD_TIME);
+    foldTimer = setTimeout(() => root.classList.remove('deck-folding', 'deck-open'), animate ? FOLD_TIME : 0);
   }
 
   function unfold() {
-    clearTimeout(foldTimer);
+    if (!folded) return;
     folded = false;
+    clearTimeout(foldTimer);
+    measure(); // the selfie may have changed size while the row was away
     root.classList.remove('deck-folding');
     root.classList.add('deck-open');
     if (!reduced) root.classList.add('deck-opening');
@@ -606,8 +628,6 @@
       ready();
     }, reduced ? 0 : UNFOLD_TIME);
   }
-
-  document.addEventListener('player-close', unfold);
 
   measure();
   render();

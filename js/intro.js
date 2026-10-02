@@ -1,7 +1,7 @@
 // The opening: the photo starts full-bleed, holds for a beat, then shrinks into
-// its spot on the page while the name and links fade in. The photo is laid out
-// at its final size and scaled up to cover the screen, so only its transform
-// animates.
+// its spot on the page while the name and links (and the about text) fade in.
+// The photo is laid out at its final size and scaled up to cover the screen, so
+// only its transform animates.
 
 const HOLD = 700; // ms full-bleed before shrinking
 const SHRINK = 1800; // ms
@@ -12,7 +12,6 @@ if (root.classList.contains('intro')) run();
 
 async function run() {
   const img = document.querySelector('.hero');
-  const nav = document.querySelector('.nav');
   try {
     await img.decode();
   } catch {
@@ -38,20 +37,19 @@ async function run() {
   const shrink = img.animate([{ transform: cover() }, { transform: 'none' }], { duration: SHRINK, easing: EASE, fill: 'forwards' });
   img.style.transform = '';
   setTimeout(landing, SHRINK * 0.72); // the other photos start unfolding (js/coverflow.js)
-  const reveal = nav.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' });
+  const fades = [...document.querySelectorAll('.nav, .about')].map((el) =>
+    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' }),
+  );
+  const all = [shrink, ...fades];
 
   // a resize mid-animation would leave it in the wrong place, so jump to the end
-  const skip = () => {
-    shrink.finish();
-    reveal.finish();
-  };
+  const skip = () => all.forEach((a) => a.finish());
   addEventListener('resize', skip, { once: true });
 
-  await Promise.all([shrink.finished, reveal.finished]);
+  await Promise.all(all.map((a) => a.finished));
   removeEventListener('resize', skip);
   done();
-  shrink.cancel();
-  reveal.cancel();
+  all.forEach((a) => a.cancel());
 }
 
 function done() {

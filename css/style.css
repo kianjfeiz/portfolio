@@ -248,6 +248,11 @@ body {
   font-weight: inherit;
 }
 
+.name a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .nav-link {
   color: var(--ink);
   text-decoration: none;
@@ -256,9 +261,68 @@ body {
 }
 
 .nav-link:hover,
-.nav-link:focus-visible {
+.nav-link:focus-visible,
+.about-open .nav-link[href="/about/"] {
   border-bottom-color: currentColor;
   outline: none;
+}
+
+/* ---------- the about view (js/pages.js) ---------- */
+
+.about {
+  display: none;
+  max-width: 32rem;
+  margin-top: clamp(0.5rem, 3vh, 2rem);
+  font-size: clamp(1.15rem, 1rem + 0.4vw, 1.35rem);
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+  view-transition-name: about;
+}
+
+.about p {
+  margin: 0 0 1em;
+}
+
+.about-open .about {
+  display: block;
+}
+
+/* the selfie shrinks and moves up to make room for the text */
+.about-open .home {
+  overflow-y: auto;
+}
+
+.about-open .frame {
+  justify-content: flex-start;
+  padding-top: clamp(2rem, 9vh, 6rem);
+}
+
+.about-open .hero {
+  width: min(30vw, calc((100svh - 12rem) * 4 / 3 * 0.45));
+}
+
+/* moving between views, the browser glides the selfie, the name and the text to their new places */
+.stage {
+  view-transition-name: selfie;
+}
+
+.nav {
+  view-transition-name: nav;
+}
+
+::view-transition-group(*) {
+  animation-duration: 0.9s;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+::view-transition-new(about) {
+  animation-delay: 0.45s;
+  animation-duration: 0.5s;
+}
+
+::view-transition-old(about) {
+  animation-duration: 0.25s;
 }
 
 /* ---------- the opening (js/intro.js) ---------- */
@@ -273,7 +337,7 @@ body {
   transition: opacity 0.25s ease;
 }
 
-.intro .nav {
+.intro :is(.nav, .about) {
   opacity: 0;
 }
 
@@ -284,5 +348,9 @@ body {
 
   .nav {
     gap: 1.6rem;
+  }
+
+  .about-open .hero {
+    width: min(48vw, calc((100svh - 12rem) * 4 / 3 * 0.45));
   }
 }

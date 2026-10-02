@@ -1,0 +1,3 @@
+# one-page site: views like /about/ are the homepage (js/pages.js)
+/about   /index.html   200
+/about/  /index.html   200
