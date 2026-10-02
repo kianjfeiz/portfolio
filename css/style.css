@@ -17,6 +17,11 @@ body {
   min-height: 100%;
 }
 
+html {
+  background: var(--paper);
+  -webkit-tap-highlight-color: transparent; /* no grey box flashing over whatever is tapped on phones */
+}
+
 /* pixel-art cursors, with 2x files for retina */
 html {
   cursor: url("../assets/cursor/arrow.png") 0 0, auto;
@@ -313,6 +318,11 @@ body {
   width: min(30vw, calc((100svh - 12rem) * 4 / 3 * 0.45));
 }
 
+/* the folded photos are sized for the bigger selfie: keep them from peeking out around this one */
+.about-open .deck {
+  visibility: hidden;
+}
+
 /* moving between views, the browser glides the selfie, the name and the text to their new places */
 .stage {
   view-transition-name: selfie;
@@ -325,6 +335,23 @@ body {
 ::view-transition-group(*) {
   animation-duration: 0.9s;
   animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* move one picture of each instead of crossfading two, so nothing dims or doubles up on the way */
+::view-transition {
+  background: var(--paper);
+}
+
+::view-transition-old(root),
+::view-transition-old(selfie),
+::view-transition-old(nav) {
+  display: none;
+}
+
+::view-transition-new(root),
+::view-transition-new(selfie),
+::view-transition-new(nav) {
+  animation: none;
 }
 
 ::view-transition-new(about) {
