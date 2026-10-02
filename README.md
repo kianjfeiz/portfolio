@@ -12,7 +12,7 @@ js/coverflow.js       the looping Cover Flow row of photos around it
 assets/img/           kian-{1200,2000,4000}.jpg (AI-upscaled with Upscayl)
 assets/img/stack/     the other photos in the row (web-size, no metadata)
 assets/cursor/        pixel-art cursors
-work/, projects/      the two subpages
+work/, about/         the two subpages
 ```
 
 ## Preview locally
@@ -25,6 +25,6 @@ Then open http://localhost:8000.
 
 ## To do
 
-1. Work and Projects pages
+1. Work and About pages
 2. Polish: meta tags, favicon
 3. Deploy
