@@ -225,12 +225,15 @@
     if (Math.abs(target - pos) < 0.0005) pos = target;
     render();
     raf = pos === target ? 0 : requestAnimationFrame(step);
+    if (!raf) settled();
   }
   function goTo(i) {
     target = Math.min(n - 1, Math.max(0, Math.round(i)));
+    if (target !== pos) hideCaption();
     if (reduced) {
       pos = target;
       render();
+      settled();
     } else if (!raf) {
       last = performance.now();
       raf = requestAnimationFrame(step);
@@ -254,6 +257,7 @@
     if (!interactive || (e.pointerType === 'mouse' && e.button !== 0)) return;
     root.classList.remove('deck-opening');
     stop();
+    hideCaption();
     drag = { id: e.pointerId, x0: e.clientX, pos0: pos, moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
     stage.setPointerCapture(e.pointerId);
   });
@@ -294,13 +298,17 @@
     if (!d) return;
     e.preventDefault();
     stop();
+    hideCaption();
     const px = d * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerWidth : 1);
     wheelDir = Math.sign(px);
     pos = Math.min(n - 0.7, Math.max(-0.3, pos + px / (perItem * 1.2)));
     render();
     clearTimeout(wheelTimer);
     // once the scrolling stops, settle — leaning toward the direction it was going
-    wheelTimer = setTimeout(() => goTo(Math.round(pos + wheelDir * 0.35)), 120);
+    wheelTimer = setTimeout(() => {
+      wheelTimer = 0;
+      goTo(Math.round(pos + wheelDir * 0.35));
+    }, 120);
   }, { passive: false });
 
   // ---------- keyboard ----------
@@ -310,7 +318,78 @@
     if (e.key === 'ArrowLeft') goTo(target - 1);
     else if (e.key === 'ArrowRight') goTo(target + 1);
     else return;
+    viaKeys = true;
     e.preventDefault();
+  });
+
+  // ---------- captions ----------
+  // The hovered photo's caption appears centred over it, just above the row, and
+  // hides while the row moves. Without a mouse (touch screens) or after using the
+  // arrow keys, it's the caption of the photo in focus.
+
+  const caption = document.querySelector('.caption');
+  const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  let shownFor = null; // photo whose caption is showing or about to
+  let pointer = null; // last mouse position
+  let viaKeys = false;
+  let swapTimer = 0;
+
+  const photoAt = (x, y) => document.elementFromPoint(x, y)?.closest('.stage .card, .stage .hero') || null;
+
+  function placeCaption(el) {
+    const r = el.getBoundingClientRect();
+    let top = r.top; // sit above the whole row, so it never covers a photo
+    for (const it of items) {
+      const b = it.getBoundingClientRect();
+      if (b.right > 0 && b.left < innerWidth) top = Math.min(top, b.top);
+    }
+    const mid = (Math.max(r.left, 0) + Math.min(r.right, innerWidth)) / 2; // over the part you can see
+    const w = caption.offsetWidth;
+    const cx = Math.min(innerWidth - 16 - w / 2, Math.max(16 + w / 2, mid));
+    caption.style.setProperty('--cx', `${cx.toFixed(1)}px`);
+    caption.style.setProperty('--cy', `${(top - 14).toFixed(1)}px`);
+  }
+
+  function showCaption(el) {
+    if (!el || !el.dataset.caption) return hideCaption();
+    if (el === shownFor) return;
+    clearTimeout(swapTimer);
+    shownFor = el;
+    const show = () => {
+      caption.textContent = el.dataset.caption;
+      placeCaption(el);
+      caption.classList.add('is-shown');
+    };
+    if (caption.classList.contains('is-shown')) {
+      caption.classList.remove('is-shown'); // let the old one fade before the new one eases in
+      swapTimer = setTimeout(show, 170);
+    } else {
+      show();
+    }
+  }
+
+  function hideCaption() {
+    clearTimeout(swapTimer);
+    shownFor = null;
+    caption.classList.remove('is-shown');
+  }
+
+  // the row has come to rest
+  function settled() {
+    if (!interactive || drag || wheelTimer) return;
+    if (!canHover || viaKeys) showCaption(items[target]);
+    else if (pointer) showCaption(photoAt(pointer.x, pointer.y));
+  }
+
+  addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    pointer = { x: e.clientX, y: e.clientY };
+    viaKeys = false;
+    if (interactive && !drag && !raf && !wheelTimer) showCaption(photoAt(e.clientX, e.clientY));
+  });
+  document.documentElement.addEventListener('mouseleave', () => {
+    pointer = null;
+    if (!viaKeys) hideCaption();
   });
 
   // ---------- the opening ----------
@@ -335,6 +414,7 @@
   function ready() {
     interactive = true;
     render();
+    settled();
   }
 
   measure();
@@ -343,6 +423,7 @@
   addEventListener('resize', () => {
     measure();
     render();
+    if (shownFor) placeCaption(shownFor);
   });
 
   if (root.classList.contains('intro')) {
