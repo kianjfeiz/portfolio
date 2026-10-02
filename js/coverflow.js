@@ -11,7 +11,7 @@
   const REVEAL = 0.34; // strip of each side photo left showing, as a share of the photo height
   const DEPTH = 2.5; // perspective distance, as a multiple of the photo height
   const WINDOW = 0.1; // half-width of the moment two passing photos are apart, in photos of scroll
-  const PART = 0.12; // how far two passing photos slide apart, as a share of the photo height
+  const PART = 0.12; // the most two passing photos slide apart, as a share of the photo height
   const GAP = 4; // px between two passing photos as they swap front and back
   const OMEGA = 10.5; // spring stiffness (rad/s)
   const ZETA = 0.8; // spring damping
@@ -85,6 +85,9 @@
     return Math.abs(u) > hw ? null : st.z - u * Math.sin(st.a * RAD);
   }
 
+  // screen x of photo i's leftmost (side -1) or rightmost (side 1) point
+  const edgeOf = (st, i, side) => side * Math.max(side * screenX(st, -half[i]), side * screenX(st, half[i]));
+
   // is `top` (painted above) nearer than `under` everywhere the two overlap on screen?
   const SAMPLES = [0, 0.04, 0.12, 0.25, 0.5, 0.75, 1];
   function clearOf(top, hwTop, under, hwUnder) {
@@ -156,6 +159,7 @@
   // apart until there's a gap between them, and whichever is underneath dips back.
   function planPass(f) {
     const g = mod(f + 1, n);
+    // the most they could need: each one's inner edge clear of the centre line on its own
     let swingA = 0;
     let swingB = 0;
     for (const t of [0.5 - WINDOW, 0.5, 0.5 + WINDOW]) {
@@ -166,8 +170,16 @@
       swingA = Math.max(swingA, (steepest(A, half[f], +1) - A.a) / swingAt(t));
       swingB = Math.min(swingB, (steepest(B, half[g], -1) - B.a) / swingAt(t));
     }
+    // ...but only as much of the slide apart and the swing as keeps the pair GAP apart while
+    // they swap, so no more white space opens up between them than that
+    const pass = (passes[f] = { part: PART, swingA, swingB, dip: 0 });
+    const use = (s) => {
+      pass.part = PART * Math.min(1, s);
+      pass.swingA = swingA * Math.max(0, s - 1);
+      pass.swingB = swingB * Math.max(0, s - 1);
+    };
+    use(bisect(2, 0, (s) => (use(s), apartBy(f) >= GAP), 20));
     // the shallowest dip that keeps everything clean, plus a little margin if that's clean too
-    const pass = (passes[f] = { swingA, swingB, dip: 0 });
     let best = { dip: 0, bad: passFaults(f) };
     for (let dip = H * 0.02; best.bad && dip <= H * 1.5; dip += H * 0.02) {
       pass.dip = dip;
@@ -183,6 +195,17 @@
   function steepest(st, hw, edge) {
     const clear = (a) => edge * screenX({ ...st, a }, edge * hw) <= -GAP / 2;
     return clear(st.a) ? st.a : bisect(edge * 89, st.a, clear, 30);
+  }
+
+  // the narrowest the space between photos f and f + 1 gets around the moment they swap
+  function apartBy(f) {
+    const g = mod(f + 1, n);
+    let least = Infinity;
+    for (let k = -2; k <= 2; k++) {
+      const all = flowAt(f + 0.5 + (k * WINDOW) / 2);
+      least = Math.min(least, edgeOf(all[g], g, -1) - edgeOf(all[f], f, 1));
+    }
+    return least;
   }
 
   // how often, during the hand-over from f to f + 1, a photo is painted over one that's nearer
@@ -241,8 +264,8 @@
       const sw = swingAt(t);
       states[a].a += pass.swingA * sw;
       states[b].a += pass.swingB * sw;
-      states[a].x -= PART * H * sw;
-      states[b].x += PART * H * sw;
+      states[a].x -= pass.part * H * sw;
+      states[b].x += pass.part * H * sw;
       states[a].z -= pass.dip * dipAt(1 - t); // the leaving photo dips after halfway
       states[b].z -= pass.dip * dipAt(t); // the arriving one before
     }
