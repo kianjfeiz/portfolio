@@ -25,7 +25,8 @@ html {
 
 a,
 button,
-.deck-open .stage :is(.card, .hero):not(.is-center) {
+.deck-open .stage :is(.card:not(.is-center), .hero),
+.player-video {
   cursor: url("../assets/cursor/hand.png") 10 0, pointer;
   cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 10 0, pointer;
 }
@@ -108,6 +109,11 @@ body {
   transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
+/* folding back behind the selfie when the video opens: outer photos first */
+.deck-folding .card {
+  transition: transform 0.7s cubic-bezier(0.6, 0, 0.3, 1) calc(var(--j) * 50ms);
+}
+
 /* the hovered photo's caption: js/coverflow.js puts it in the photo's own 3D plane */
 .caption {
   position: absolute;
@@ -139,6 +145,89 @@ body {
   .caption.is-shown {
     filter: none;
     transition-duration: 0.15s;
+  }
+}
+
+/* ---------- the video (js/player.js) ---------- */
+
+/* 16:9 at the selfie's height; it opens out from the selfie's 4:3 (12.5% in from each side) */
+.player {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 15000; /* above the photos */
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  translate: -50% 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--ink);
+  opacity: 0;
+  clip-path: inset(0 12.5% round var(--radius));
+  transition: clip-path 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
+}
+
+.player.is-open {
+  opacity: 1;
+  clip-path: inset(0 0 round var(--radius));
+  transition: opacity 0.35s ease 0.25s, clip-path 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s;
+}
+
+.player-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* pixel-art buttons in the same style as the cursors (assets/ui) */
+.player-btn {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: center no-repeat;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.player.is-open .player-btn {
+  opacity: 1;
+  transition: opacity 0.3s ease 1s;
+}
+
+.player-btn:active {
+  filter: invert(1);
+}
+
+.player-btn:focus-visible {
+  outline: 2px dotted #fff;
+  outline-offset: -4px;
+}
+
+.player-toggle {
+  left: 4px;
+  bottom: 4px;
+  background-image: url("../assets/ui/play.svg");
+}
+
+.player.is-playing .player-toggle {
+  background-image: url("../assets/ui/pause.svg");
+}
+
+.player-close {
+  top: 4px;
+  right: 4px;
+  background-image: url("../assets/ui/close.svg");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player,
+  .player.is-open,
+  .player-btn,
+  .player.is-open .player-btn {
+    transition: none;
   }
 }
 
