@@ -114,15 +114,17 @@ body {
   transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
-/* folded away behind the photo in focus, for its video or the about view (js/coverflow.js):
-   they fade as they tuck in, outer ones first, and come back the way they opened */
+/* folded away behind the photo in focus, for its video or the about view (js/coverflow.js).
+   Folding moves like the fan-out, outer photos first: each slides in under the photo in
+   focus and only fades once it's tucked behind it (unseen behind the selfie; softly where
+   it peeks out round a narrower photo). They come back the way they opened. */
 .stage .is-tucked {
   opacity: 0 !important;
   pointer-events: none;
 }
 
 .deck-folding .is-tucked {
-  transition: transform 0.7s cubic-bezier(0.6, 0, 0.3, 1) calc(var(--j) * 50ms), opacity 0.3s ease 0.45s;
+  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--j) * 90ms), opacity 0.3s ease calc(var(--j) * 90ms + 0.7s);
 }
 
 .stage .is-unfolding {

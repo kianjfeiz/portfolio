@@ -36,9 +36,8 @@
   const SEAM = Math.floor(n / 2); // the loop joins up just past this many places to the right
   const REACH = SEAM + 2; // how many places out either side get a resting spot
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const UNFOLD_TIME = 1300 + (SEAM - 1) * 90 + 50; // ms, see .deck-opening in the CSS
-  const FOLD_TIME = 700 + (SEAM - 1) * 50 + 50; // ms, see .deck-folding
-  const FADED = 750; // ms until the folding photos have faded out, see .deck-folding .is-tucked
+  const FAN_TIME = 1300 + (SEAM - 1) * 90 + 50; // ms to fan out or fold back in, see .deck-opening and .deck-folding in the CSS
+  const TUCKED = 900; // ms into folding when they're all out of sight behind the photo in focus
 
   const mod = (a, m) => ((a % m) + m) % m;
 
@@ -645,7 +644,7 @@
     root.classList.add('deck-open');
     void stage.offsetWidth; // flush styles so the transition starts from the folded state
     render();
-    setTimeout(() => root.classList.remove('deck-opening'), UNFOLD_TIME);
+    setTimeout(() => root.classList.remove('deck-opening'), FAN_TIME);
   }
 
   const tuckedAway = () => `perspective(${P}px) translate3d(0px, 0, ${(-P * FOLDED) / (1 - FOLDED)}px) rotateY(0deg)`;
@@ -665,7 +664,7 @@
 
   const holds = new Set(); // what wants the row folded away right now
   let foldTimer = 0;
-  let fading = false; // the photos are still fading out as they fold
+  let tucking = false; // the photos are still on their way in
 
   document.addEventListener('row-fold', (e) => {
     holds.add(e.detail.by);
@@ -697,14 +696,14 @@
   function tuck() {
     if (!holds.size) return; // asked to unfold again while it was on its way
     if (folded) {
-      if (!fading) announceFolded(); // (otherwise it will once they've faded)
+      if (!tucking) announceFolded(); // (otherwise it will once they're in)
       return;
     }
     folded = true;
     kept = mod(target, n);
     const animate = opened && !reduced;
     if (animate) root.classList.add('deck-folding');
-    fading = true;
+    tucking = true;
     items.forEach((el, i) => {
       if (i === kept) return;
       el.style.setProperty('--j', String(SEAM - Math.abs(offset(i, kept)))); // outer ones first
@@ -713,17 +712,17 @@
     });
     clearTimeout(foldTimer);
     foldTimer = setTimeout(() => {
-      fading = false;
-      announceFolded(); // they've faded out: the page can move on while they finish tucking in
-      foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FOLD_TIME - FADED : 0);
-    }, animate ? FADED : 0);
+      tucking = false;
+      announceFolded(); // out of sight: the page can move on while they settle
+      foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FAN_TIME - TUCKED : 0);
+    }, animate ? TUCKED : 0);
   }
 
   const announceFolded = () => document.dispatchEvent(new Event('row-folded'));
 
   function unfold() {
     arrived = null; // a fold still on its way doesn't happen
-    fading = false;
+    tucking = false;
     if (!folded) return ready();
     folded = false;
     clearTimeout(foldTimer);
@@ -740,7 +739,7 @@
     foldTimer = setTimeout(() => {
       for (const el of back) el.classList.remove('is-unfolding');
       ready();
-    }, reduced ? 0 : UNFOLD_TIME);
+    }, reduced ? 0 : FAN_TIME);
   }
 
   measure();
