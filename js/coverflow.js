@@ -18,8 +18,8 @@
   const FOLLOW = 22; // stiffer spring while a trackpad or wheel is moving the row
   const FLING = 0.22; // seconds of a flick's speed carried into where it lands
   const FOLDED = 0.16; // a photo tucked behind another is at least this much smaller
-  const FAN_MS = 450; // ms each photo takes to slide out from behind the one inside it
-  const FAN_STEP = 180; // ms between one photo starting and the next one out
+  const FAN_MS = 1100; // ms each photo takes to slide out from behind the one inside it
+  const FAN_STEP = 130; // ms between one photo starting and the next one out
   const FOLD_MS = 260; // ... and to fold back in, quicker, so whatever's next isn't kept waiting
   const FOLD_STEP = 60;
   const RAD = Math.PI / 180;
@@ -706,7 +706,7 @@
       const partway = from[i] > 0 && from[i] < 1; // already on its way: it turns round at once
       const wait = partway ? 0 : goal ? (k - 1) * FAN_STEP : (SEAM - k) * FOLD_STEP;
       const t = clamp((now - start - wait) / ((goal ? FAN_MS : FOLD_MS) * Math.abs(goal - from[i])), 0, 1);
-      out[i] = from[i] + (goal - from[i]) * ease(t);
+      out[i] = from[i] + (goal - from[i]) * (goal ? easeOut(t) : ease(t));
       if (t < 1) moving = true;
     }
     if (moving) return;
@@ -843,6 +843,11 @@
   // eases in and out, settling more slowly than it sets off
   function ease(t) {
     return t < 0.35 ? (t * t) / 0.35 : 1 - (1 - t) ** 2 / 0.65;
+  }
+
+  // sets off quickly and glides a long way into place (fanning out)
+  function easeOut(t) {
+    return t === 1 ? 1 : 1 - 2 ** (-10 * t);
   }
 
   function smooth(x) {
