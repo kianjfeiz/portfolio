@@ -159,6 +159,34 @@ body {
   }
 }
 
+/* ---------- a moment of a photo's video (js/peek.js) ---------- */
+
+/* exactly over the photo in focus at rest, in its shape (--shape, width / height); the stage is
+   as wide as the 4:3 selfie, so width r * 75% gives shape r */
+.peek {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 12000; /* above the photos, under the caption and the player */
+  height: 100%;
+  width: calc(var(--shape, 4 / 3) * 75%);
+  translate: -50% 0;
+  border-radius: var(--radius);
+  object-fit: cover;
+  pointer-events: none; /* clicks go to the photo */
+  opacity: 0;
+  transition: opacity 0.12s ease; /* cut short: gone before the row moves off */
+}
+
+.peek.is-shown {
+  opacity: 1;
+  transition-duration: 0.7s;
+}
+
+.peek.is-ending {
+  transition-duration: 0.6s;
+}
+
 /* ---------- the video (js/player.js) ---------- */
 
 /* it fades in over the photo in its shape (--from, width / height), and once the other photos

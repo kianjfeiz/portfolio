@@ -611,6 +611,15 @@
     clearTimeout(swapTimer);
     shownFor = null;
     caption.classList.remove('is-shown');
+    restOn(null); // (it hides whenever the row moves or folds)
+  }
+
+  // tell js/peek.js which photo the row has come to rest on (null: none, it's on the move)
+  let resting = null;
+  function restOn(photo) {
+    if (photo === resting) return;
+    resting = photo;
+    document.dispatchEvent(new CustomEvent('row-rest', { detail: { photo } }));
   }
 
   // the row has come to rest
@@ -618,6 +627,7 @@
     if (!interactive || dragging || wheelTimer) return;
     const hovered = canHover && pointer && !viaKeys ? photoAt(pointer.x, pointer.y) : null;
     showCaption(hovered || items[mod(target, n)]);
+    restOn(items[mod(target, n)]);
   }
 
   addEventListener('pointermove', (e) => {

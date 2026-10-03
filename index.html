@@ -19,6 +19,7 @@
   <script src="/js/intro.js" defer></script>
   <script src="/js/coverflow.js" defer></script>
   <script src="/js/player.js" defer></script>
+  <script src="/js/peek.js" defer></script>
   <script src="/js/pages.js" defer></script>
 </head>
 <body class="home">
@@ -39,6 +40,8 @@
       </div>
       <img class="hero" data-video="/assets/video/jackson.mp4" data-video-ratio="16 / 9" data-caption="Jackson, Wyoming" src="/assets/img/kian-2000.jpg" srcset="/assets/img/kian-1200.jpg 1200w, /assets/img/kian-2000.jpg 2000w, /assets/img/kian-4000.jpg 4000w" sizes="100vw" alt="Kian taking a selfie in front of a snow-capped mountain range" fetchpriority="high" draggable="false">
       <p class="caption" aria-live="polite"></p>
+      <!-- a moment of a photo's video, over it while the row rests on it (js/peek.js) -->
+      <video class="peek" muted playsinline preload="none" aria-hidden="true"></video>
       <!-- a photo with a video (data-video) opens out into this (js/player.js) -->
       <div class="player" hidden>
         <video class="player-video" preload="none" playsinline></video>
