@@ -1,7 +1,7 @@
 // The videos: clicking a photo with a video when it's in focus (or Enter) folds the
 // other photos away (js/coverflow.js) and the photo opens out into this little player,
 // shaped like its video, which starts playing straight away. Space plays and pauses,
-// Escape closes it, and it closes on its own when the page moves to another view
+// Escape closes it, and it closes into the selfie when the page moves to another view
 // (js/pages.js).
 
 (() => {
@@ -17,13 +17,23 @@
   let photo = null; // the photo whose video is showing
   let timers = [];
 
-  // with sound if the browser allows it, otherwise muted (a tap on the video turns it on)
-  const play = () => video.play().catch(() => ((video.muted = true), video.play())).catch(() => {});
+  // with sound if the browser allows it, otherwise muted (a tap on the video turns it on);
+  // if it was closed before it got going, it stays stopped
+  const play = () =>
+    video
+      .play()
+      .catch((e) => {
+        if (e.name !== 'NotAllowedError' || !open) return;
+        video.muted = true;
+        return video.play();
+      })
+      .catch(() => {});
   const playPause = () => {
+    if (!open) return; // closing
     video.muted = false;
     return video.paused ? play() : video.pause();
   };
-  const row = (type) => document.dispatchEvent(new CustomEvent(type, { detail: { by: 'player' } }));
+  const row = (type, more) => document.dispatchEvent(new CustomEvent(type, { detail: { by: 'player', ...more } }));
 
   document.addEventListener('photo-click', (e) => {
     if (open) return;
@@ -33,13 +43,14 @@
     if (video.getAttribute('src') !== photo.dataset.video) video.src = photo.dataset.video; // a new one starts from the top
     video.setAttribute('aria-label', `Video: ${photo.alt}`);
     play(); // right away, while the click still lets it play with sound
-    row('row-fold');
     // open out from the photo's shape to the video's; on a phone a tall video also grows
     // upward into the room above the photo, so it's big enough to watch
     const [w, h] = photo.dataset.videoRatio.split('/').map(Number);
     const room = (photo.getBoundingClientRect().bottom - 12) / photo.offsetHeight;
     const grow = w < h && matchMedia('(max-width: 700px)').matches ? Math.min(2.4, Math.max(1, room)) : 1;
-    player.style.setProperty('--from', String(photo.offsetWidth / photo.offsetHeight));
+    const shape = photo.offsetWidth / photo.offsetHeight;
+    row('row-fold', { cover: Math.min(shape, (w / h) * grow) }); // the others hide behind whichever is narrower
+    player.style.setProperty('--from', String(shape));
     player.style.setProperty('--to', photo.dataset.videoRatio);
     player.style.setProperty('--grow', String(grow));
     player.hidden = false;
@@ -49,7 +60,7 @@
     if (e.detail.viaKeyboard) toggle.focus({ preventScroll: true });
   });
 
-  function shut(now = false) {
+  function shut() {
     if (!open) return;
     open = false;
     video.pause();
@@ -58,8 +69,9 @@
     const done = () => {
       player.hidden = true;
       row('row-unfold'); // the photos come back
+      document.dispatchEvent(new Event('player-closed'));
     };
-    if (now || reduced) {
+    if (reduced) {
       back();
       done();
     } else {
@@ -76,8 +88,14 @@
 
   toggle.addEventListener('click', playPause);
   video.addEventListener('click', playPause);
-  close.addEventListener('click', () => shut());
-  document.addEventListener('route', () => shut(true));
+  close.addEventListener('click', shut);
+  // moving to another view: close into the selfie, which the row brings to the middle
+  document.addEventListener('route', () => {
+    if (!open) return;
+    const selfie = document.querySelector('.hero');
+    player.style.setProperty('--from', String(selfie.offsetWidth / selfie.offsetHeight));
+    shut();
+  });
   for (const type of ['play', 'pause', 'ended']) video.addEventListener(type, sync);
 
   addEventListener('keydown', (e) => {
