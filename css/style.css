@@ -22,18 +22,19 @@ html {
   -webkit-tap-highlight-color: transparent; /* no grey box flashing over whatever is tapped on phones */
 }
 
-/* pixel-art cursors, with 2x files for retina */
+/* fine-lined cursors to sit with the serif, with 2x files for retina (drawn in
+   assets/cursor/*.svg) */
 html {
-  cursor: url("../assets/cursor/arrow.png") 0 0, auto;
-  cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 0 0, auto;
+  cursor: url("../assets/cursor/arrow.png") 3 2, auto;
+  cursor: -webkit-image-set(url("../assets/cursor/arrow.png") 1x, url("../assets/cursor/arrow@2x.png") 2x) 3 2, auto;
 }
 
 a,
 button,
 .deck-open .stage :is(.card:not(.is-center), [data-video]),
 .player-video {
-  cursor: url("../assets/cursor/hand.png") 10 0, pointer;
-  cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 10 0, pointer;
+  cursor: url("../assets/cursor/hand.png") 9 2, pointer;
+  cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 9 2, pointer;
 }
 
 body {
