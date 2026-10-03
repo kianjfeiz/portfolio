@@ -212,14 +212,21 @@ body {
   opacity: 1;
 }
 
-/* pixel-art buttons in the same style as the cursors (assets/ui) */
+/* in the page's serif, white over the video: "play" / "pause" and "exit" */
 .player-btn {
   position: absolute;
-  width: 44px;
+  min-width: 44px;
   height: 44px;
-  padding: 0;
+  padding: 0 12px;
   border: 0;
-  background: center no-repeat;
+  background: none;
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 44px;
+  color: #fff;
+  text-shadow: 0 1px 10px rgb(0 0 0 / 0.45);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -229,29 +236,36 @@ body {
   transition: opacity 0.25s ease 0.35s;
 }
 
-.player-btn:active {
-  filter: invert(1);
+.player-btn:hover,
+.player-btn:focus-visible {
+  text-decoration-line: underline;
+  outline: none;
 }
 
-.player-btn:focus-visible {
-  outline: 2px dotted #fff;
-  outline-offset: -4px;
+.player.is-grown .player-btn:active {
+  opacity: 0.6;
 }
 
 .player-toggle {
   left: 4px;
   bottom: 4px;
-  background-image: url("../assets/ui/play.svg");
 }
 
-.player.is-playing .player-toggle {
-  background-image: url("../assets/ui/pause.svg");
+.player-toggle::after {
+  content: "play";
+}
+
+.player.is-playing .player-toggle::after {
+  content: "pause";
 }
 
 .player-close {
   top: 4px;
   right: 4px;
-  background-image: url("../assets/ui/close.svg");
+}
+
+.player-close::after {
+  content: "exit";
 }
 
 @media (prefers-reduced-motion: reduce) {
