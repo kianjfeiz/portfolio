@@ -41,14 +41,21 @@
     }
   }
 
+  function go(path) {
+    if (path !== location.pathname) history.pushState(null, '', path);
+    show(isAbout(path));
+  }
+
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a');
     if (!a || a.origin !== location.origin || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (a.pathname !== '/' && !isAbout(a.pathname)) return; // other pages still load as pages
     e.preventDefault();
-    if (a.pathname !== location.pathname) history.pushState(null, '', a.pathname);
-    show(isAbout(a.pathname));
+    go(a.pathname);
   });
+
+  // on the about view, the selfie leads back home
+  document.querySelector('.hero').addEventListener('click', () => about && go('/'));
 
   addEventListener('popstate', () => show(isAbout(location.pathname)));
 })();
