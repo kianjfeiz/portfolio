@@ -110,26 +110,11 @@ body {
   will-change: transform;
 }
 
-.deck-opening .card {
-  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
-}
-
-/* folded away behind the photo in focus, for its video or the about view (js/coverflow.js).
-   Folding moves like the fan-out, outer photos first: each slides in under the photo in
-   focus and only fades once it's tucked behind it (unseen behind the selfie; softly where
-   it peeks out round a narrower photo). They come back the way they opened. */
+/* folded away out of sight behind the photo in focus, for its video or the about view
+   (js/coverflow.js moves them there and back) */
 .stage :is(.is-tucked, .is-waiting) {
   opacity: 0 !important;
   pointer-events: none;
-}
-
-.deck-folding .is-tucked {
-  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--j) * 90ms), opacity 0.3s ease calc(var(--j) * 90ms + 0.7s);
-}
-
-/* solid again at once, still hidden behind the photo in focus, then out the way they first came */
-.stage .is-unfolding {
-  transition: transform 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 90ms);
 }
 
 /* the hovered photo's caption: js/coverflow.js puts it in the photo's own 3D plane */
@@ -264,10 +249,7 @@ body {
   .player.is-open,
   .player-btn,
   .player.is-open .player-btn,
-  .stage .is-behind-player,
-  .deck-opening .card,
-  .deck-folding .is-tucked,
-  .stage .is-unfolding {
+  .stage .is-behind-player {
     transition: none;
   }
 }
