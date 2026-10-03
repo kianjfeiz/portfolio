@@ -327,6 +327,7 @@
   let dragging = null;
   let raf = 0;
   let last = 0;
+  let wasStill = false;
 
   function frame(now) {
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
@@ -354,6 +355,10 @@
     }
     render();
     if (arrived && Math.abs(pos - target) < 0.01) arrive(); // as good as there
+    // the caption comes in as soon as the row has as good as stopped
+    const still = !dragging && !glide && Math.abs(pos - target) < 0.02 && Math.abs(vel) < 0.3;
+    if (still && !wasStill) settled();
+    wasStill = still;
     if (dragging || glide || pos !== target || vel !== 0) {
       raf = requestAnimationFrame(frame);
     } else {
@@ -516,9 +521,9 @@
   });
 
   // ---------- captions ----------
-  // The hovered photo's caption sits just above it, in the photo's own 3D plane so
-  // it leans with it. It hides while the row moves. On touch screens, or after
-  // using the arrow keys, it's the caption of the photo in focus.
+  // The caption of the photo in focus sits just above it, in the photo's own 3D plane
+  // so it leans with it, and hides while the row moves. Hovering another photo shows
+  // that one's instead.
 
   const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const LIFT = 14; // px between the caption and the top of its photo
@@ -608,20 +613,20 @@
   // the row has come to rest
   function settled() {
     if (!interactive || dragging || wheelTimer) return;
-    if (!canHover || viaKeys) showCaption(items[mod(target, n)]);
-    else if (pointer) showCaption(photoAt(pointer.x, pointer.y));
+    const hovered = canHover && pointer && !viaKeys ? photoAt(pointer.x, pointer.y) : null;
+    showCaption(hovered || items[mod(target, n)]);
   }
 
   addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     pointer = { x: e.clientX, y: e.clientY };
     viaKeys = false;
-    if (interactive && !dragging && !raf && !wheelTimer) showCaption(photoAt(e.clientX, e.clientY));
+    if (!raf) settled();
   });
 
   root.addEventListener('mouseleave', () => {
     pointer = null;
-    if (!viaKeys) hideCaption();
+    if (!raf) settled();
   });
 
   // ---------- the opening ----------
