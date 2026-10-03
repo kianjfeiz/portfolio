@@ -34,9 +34,14 @@
     video.setAttribute('aria-label', `Video: ${photo.alt}`);
     play(); // right away, while the click still lets it play with sound
     row('row-fold');
-    // open out from the photo's shape to the video's
+    // open out from the photo's shape to the video's; on a phone a tall video also grows
+    // upward into the room above the photo, so it's big enough to watch
+    const [w, h] = photo.dataset.videoRatio.split('/').map(Number);
+    const room = (photo.getBoundingClientRect().bottom - 12) / photo.offsetHeight;
+    const grow = w < h && matchMedia('(max-width: 700px)').matches ? Math.min(2.4, Math.max(1, room)) : 1;
     player.style.setProperty('--from', String(photo.offsetWidth / photo.offsetHeight));
     player.style.setProperty('--to', photo.dataset.videoRatio);
+    player.style.setProperty('--grow', String(grow));
     player.hidden = false;
     void player.offsetWidth; // flush styles so it opens out from the photo
     player.classList.add('is-open');

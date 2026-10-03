@@ -172,12 +172,13 @@ body {
 
 /* ---------- the video (js/player.js) ---------- */
 
-/* as tall as the photo, it opens out from the photo's shape (--from, width / height) to the
-   video's (--to). The stage is as wide as the 4:3 selfie, so width r * 75% gives shape r. */
+/* it opens out from the photo's shape (--from, width / height) to the video's (--to), as tall
+   as the photo, or --grow times taller (upward) for a tall video on a phone. The stage is as
+   wide as the 4:3 selfie, so width r * 75% gives shape r. */
 .player {
   position: absolute;
   left: 50%;
-  top: 0;
+  bottom: 0;
   z-index: 15000; /* above the photos */
   height: 100%;
   width: calc(var(--from, 4 / 3) * 75%);
@@ -186,13 +187,14 @@ body {
   overflow: hidden;
   background: var(--ink);
   opacity: 0;
-  transition: width 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
+  transition: width 0.45s cubic-bezier(0.7, 0, 0.2, 1), height 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
 }
 
 .player.is-open {
-  width: calc(var(--to, 16 / 9) * 75%);
+  height: calc(var(--grow, 1) * 100%);
+  width: calc(var(--to, 16 / 9) * var(--grow, 1) * 75%);
   opacity: 1;
-  transition: opacity 0.35s ease 0.25s, width 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s;
+  transition: opacity 0.35s ease 0.25s, width 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s, height 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.35s;
 }
 
 /* the photo under the player, once the player has faded in over it */
