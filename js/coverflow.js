@@ -61,7 +61,8 @@
   let passes = []; // passes[f]: how photos f and f + 1 swing and dip as they trade places
   let ox = 0; // stage centre on screen
 
-  const aspect = (el) => (el === hero ? hero.offsetWidth / hero.offsetHeight : el.width / el.height);
+  // a photo's shape: the selfie as laid out, the others from the size of their files
+  const aspect = (el) => (el === hero ? hero.offsetWidth / hero.offsetHeight : el.getAttribute('width') / el.getAttribute('height'));
 
   // ---------- geometry ----------
 
@@ -336,8 +337,10 @@
       pos = dragging.pos0 - (dragging.x - dragging.x0) / perItem;
       if (dt > 0) vel = vel * 0.6 + ((pos - prev) / dt) * 0.4;
     } else if (glide) {
-      const k = Math.min(1, (now - glide.start) / glide.ms);
-      pos = k < 1 ? glide.from + (glide.to - glide.from) * (0.5 - Math.cos(Math.PI * k) / 2) : glide.to; // eases in and out
+      // a smooth curve from where it was (carrying the speed it had) to a stop at the end
+      const k = clamp((now - glide.start) / glide.ms, 0, 1); // (a frame can be stamped just before it started)
+      const { from, to, push } = glide;
+      pos = k < 1 ? from + push * (k - 2 * k * k + k * k * k) + (to - from) * (3 * k * k - 2 * k * k * k) : to;
       if (k === 1) glide = null;
     } else {
       // small steps keep it stable at any frame rate
@@ -353,7 +356,7 @@
       }
     }
     render();
-    if (arrived && Math.abs(pos - target) < 0.01) arrive(); // as good as there
+    if (arrived && !glide && Math.abs(pos - target) < 0.01) arrive(); // as good as there (a glide: once it's done)
     // the caption comes in as soon as the row has as good as stopped
     const still = !dragging && !glide && Math.abs(pos - target) < 0.02 && Math.abs(vel) < 0.3;
     if (still && !wasStill) settled();
@@ -405,7 +408,8 @@
   function glideTo(i, then) {
     if (reduced) return goTo(i, then);
     const to = Math.round(i);
-    glide = { from: pos, to, start: performance.now(), ms: 500 + 140 * Math.abs(to - pos) };
+    const ms = 400 + 100 * Math.abs(to - pos);
+    glide = { from: pos, to, push: (vel * ms) / 1000, start: performance.now(), ms };
     target = to;
     vel = 0;
     arrived = then;
@@ -417,7 +421,6 @@
 
   stage.addEventListener('pointerdown', (e) => {
     if (!interactive || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    root.classList.remove('deck-opening');
     hideCaption();
     clearTimeout(wheelTimer);
     wheelTimer = 0;
@@ -633,24 +636,34 @@
   function open() {
     if (opened) return;
     opened = true;
-    // start folded behind the main photo, then let the CSS transition unfold them
+    // start folded behind the main photo, then let the CSS transition fan them out
     for (const c of cards) {
-      const i = Math.abs(offset(items.indexOf(c), HOME)) - 1; // 0 for the photos either side of the selfie
-      c.style.setProperty('--i', String(i));
-      c.style.transform = tuckedAway();
+      const i = items.indexOf(c);
+      c.style.setProperty('--i', String(Math.abs(offset(i, HOME)) - 1)); // 0 for the photos either side of the selfie
+      c.style.transform = tuckedAway(i);
     }
     if (folded) return; // it stays folded away for now (the page opened on the about view)
     if (!reduced) root.classList.add('deck-opening');
     root.classList.add('deck-open');
     void stage.offsetWidth; // flush styles so the transition starts from the folded state
     render();
-    setTimeout(() => root.classList.remove('deck-opening'), FAN_TIME);
+    setTimeout(() => {
+      root.classList.remove('deck-opening');
+      ready();
+    }, reduced ? 0 : FAN_TIME);
   }
 
-  const tuckedAway = () => `perspective(${P}px) translate3d(0px, 0, ${(-P * FOLDED) / (1 - FOLDED)}px) rotateY(0deg)`;
+  // photo i folded away straight behind the photo in focus: far enough back that what covers
+  // it (half-width `cover`: the photo, or a narrower video over it) hides it, and at least
+  // FOLDED smaller
+  function tuckedAway(i, cover = half[HOME]) {
+    const s = Math.min(1 - FOLDED, (0.9 * cover) / half[i]);
+    return `perspective(${P}px) translate3d(0px, 0, ${(P * (1 - 1 / s)).toFixed(2)}px) rotateY(0deg)`;
+  }
 
   function ready() {
-    if (folded || root.classList.contains('intro')) return; // not yet: it's folded away, or still opening
+    const busy = ['intro', 'deck-opening'].some((c) => root.classList.contains(c));
+    if (folded || unfolding || busy) return; // not yet: folded away, or still opening or fanning out
     interactive = true;
     render();
     settled();
@@ -664,11 +677,14 @@
 
   const holds = new Set(); // what wants the row folded away right now
   let foldTimer = 0;
-  let tucking = false; // the photos are still on their way in
+  let tucking = false; // the photos are on their way in
+  let unfolding = false; // ... or on their way back out
+  let cover = 0; // half-width of what they fold away behind (0: the photo in focus)
+  let pending = null; // a fold asked for while they were still fanning out
 
   document.addEventListener('row-fold', (e) => {
     holds.add(e.detail.by);
-    fold(e.detail.selfie);
+    fold(e.detail.selfie, e.detail.cover);
   });
   document.addEventListener('row-unfold', (e) => {
     holds.delete(e.detail.by);
@@ -677,67 +693,112 @@
 
   // Fold everything else away behind the photo in focus. For the selfie (the about view),
   // glide the row back round to it first. Says 'row-folded' once it's done.
-  function fold(toSelfie) {
+  function fold(toSelfie, coverRatio = 0) {
     interactive = false;
     hideCaption();
     clearTimeout(wheelTimer); // a scroll that was about to settle somewhere else
     wheelTimer = 0;
+    cover = (coverRatio * H) / 2;
     const here = Math.round(pos);
     const goal = toSelfie ? here + offset(HOME, here) : here;
-    if (folded && mod(goal, n) !== kept) {
-      // folded around another photo (its video was open): bring the row back out to spin it
-      folded = false;
-      for (const el of items) el.classList.remove('is-tucked', 'is-unfolding');
+    if (folded && mod(goal, n) !== kept) return swap(goal);
+    if (unfolding && goal !== here) {
+      pending = { toSelfie, coverRatio }; // let them finish fanning out, then glide round
+      return;
     }
     if (goal === here) goTo(goal, tuck);
     else glideTo(goal, tuck); // round to the selfie, unhurried
   }
 
+  // tuck every photo but the one in focus away behind it: outer ones first, or, if they were
+  // still fanning out, all at once from where they are
   function tuck() {
     if (!holds.size) return; // asked to unfold again while it was on its way
     if (folded) {
       if (!tucking) announceFolded(); // (otherwise it will once they're in)
       return;
     }
+    const midway = unfolding || root.classList.contains('deck-opening');
     folded = true;
+    unfolding = false;
     kept = mod(target, n);
+    items.forEach((el, i) => {
+      el.classList.remove('is-unfolding');
+      if (i === kept) return;
+      el.style.setProperty('--j', midway ? '0' : String(SEAM - Math.abs(offset(i, kept))));
+      el.style.transform = tuckedAway(i, cover || half[kept]);
+      el.classList.add('is-tucked');
+    });
+    whenTucked();
+  }
+
+  // Folded round one photo but now wanted round another (the about view while a video was
+  // open): behind the video, the hidden row jumps round and the old photo tucks away, while the
+  // new one waits in the middle out of sight until the video closing over it has taken its
+  // shape (js/player.js, about 0.45 s).
+  function swap(goal) {
+    glide = null;
+    arrived = null;
+    vel = 0;
+    pos = target = goal;
+    const old = kept;
+    kept = mod(goal, n);
+    items[old].style.transform = tuckedAway(old, half[kept]);
+    items[old].classList.add('is-tucked');
+    const now = items[kept];
+    now.classList.remove('is-tucked', 'is-unfolding');
+    now.classList.add('is-waiting');
+    setTimeout(() => now.classList.remove('is-waiting'), reduced ? 0 : 450);
+    render();
+    whenTucked();
+  }
+
+  function whenTucked() {
     const animate = opened && !reduced;
     if (animate) root.classList.add('deck-folding');
     tucking = true;
-    items.forEach((el, i) => {
-      if (i === kept) return;
-      el.style.setProperty('--j', String(SEAM - Math.abs(offset(i, kept)))); // outer ones first
-      el.style.transform = tuckedAway();
-      el.classList.add('is-tucked');
-    });
     clearTimeout(foldTimer);
     foldTimer = setTimeout(() => {
       tucking = false;
       announceFolded(); // out of sight: the page can move on while they settle
-      foldTimer = setTimeout(() => root.classList.remove('deck-folding'), animate ? FAN_TIME - TUCKED : 0);
+      foldTimer = setTimeout(() => {
+        root.classList.remove('deck-folding');
+        for (const el of items) el.classList.remove('is-unfolding');
+      }, animate ? FAN_TIME - TUCKED : 0);
     }, animate ? TUCKED : 0);
   }
 
   const announceFolded = () => document.dispatchEvent(new Event('row-folded'));
 
+  // fan them back out: inner ones first, or, if they were still on their way in, all at
+  // once from where they are
   function unfold() {
     arrived = null; // a fold still on its way doesn't happen
+    pending = null;
+    const midway = tucking;
     tucking = false;
     if (!folded) return ready();
     folded = false;
     clearTimeout(foldTimer);
-    measure(); // the selfie may have changed size while the row was away
+    if (hero.offsetHeight !== H) measure(); // the selfie changed size while the row was away
     root.classList.remove('deck-folding');
     root.classList.add('deck-open');
-    const back = items.filter((el) => el.classList.contains('is-tucked'));
-    for (const el of back) {
-      el.style.setProperty('--i', String(Math.abs(offset(items.indexOf(el), kept)) - 1)); // inner ones first
+    unfolding = !reduced;
+    for (const el of items) {
+      if (!el.classList.contains('is-tucked')) continue;
+      el.style.setProperty('--i', midway ? '0' : String(Math.abs(offset(items.indexOf(el), kept)) - 1));
       el.classList.remove('is-tucked');
       if (!reduced) el.classList.add('is-unfolding');
     }
     render();
     foldTimer = setTimeout(() => {
-      for (const el of back) el.classList.remove('is-unfolding');
+      unfolding = false;
+      for (const el of items) el.classList.remove('is-unfolding');
+      if (pending) {
+        const { toSelfie, coverRatio } = pending;
+        pending = null;
+        return fold(toSelfie, coverRatio);
+      }
       ready();
     }, reduced ? 0 : FAN_TIME);
   }
@@ -751,6 +812,7 @@
     if (resizing) return;
     resizing = requestAnimationFrame(() => {
       resizing = 0;
+      for (const el of items) el.style.setProperty('--i', '0'); // anything still fanning out carries on without a pause
       measure();
       if (placedOn) captionW = caption.offsetWidth;
       render();
