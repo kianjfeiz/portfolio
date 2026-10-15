@@ -598,6 +598,7 @@
     if (!el || !el.dataset.caption) return hideCaption();
     if (el === shownFor) return;
     clearTimeout(swapTimer);
+    clearTimeout(unplaceTimer);
     shownFor = el;
     const show = () => {
       caption.textContent = el.dataset.caption;
@@ -613,10 +614,16 @@
     }
   }
 
+  // once it has faded out, stop carrying it along with its photo: moving a blurred caption
+  // every frame is costly on phones
+  let unplaceTimer = 0;
   function hideCaption() {
     clearTimeout(swapTimer);
+    if (!shownFor) return;
     shownFor = null;
     caption.classList.remove('is-shown');
+    clearTimeout(unplaceTimer);
+    unplaceTimer = setTimeout(() => (placedOn = null), 250);
   }
 
   // the row has come to rest
