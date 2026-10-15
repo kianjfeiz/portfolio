@@ -61,12 +61,6 @@ body {
   padding: 2rem 1rem;
 }
 
-/* equal space above the photos as below the links, with the name at the foot of the lower one */
-.frame::before {
-  content: "";
-  flex: 1 1 0;
-}
-
 .stage {
   position: relative;
   touch-action: pan-y; /* horizontal swipes move the photos */
@@ -172,10 +166,16 @@ body {
   line-height: 1;
 }
 
+/* pinned to the foot of the screen in both views */
 .sign {
-  flex: 1 1 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30000; /* above the photos */
   display: flex;
-  align-items: flex-end;
+  justify-content: center;
+  padding: 0.9rem 1rem clamp(1.25rem, 4vh, 2rem);
 }
 
 .name {
@@ -245,9 +245,13 @@ body {
   padding-top: clamp(1.5rem, 6vh, 4rem);
 }
 
-/* no space above here: the text starts at the top and the name takes what's left below */
-.about-open .frame::before {
-  display: none;
+/* the text scrolls away under the name, on a strip of paper, with room at the end to clear it */
+.about-open .sign {
+  background: var(--paper);
+}
+
+.about-open .frame {
+  padding-bottom: 6rem;
 }
 
 .about-open .hero {
