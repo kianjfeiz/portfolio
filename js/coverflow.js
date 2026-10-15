@@ -15,7 +15,7 @@
   const OMEGA = 10.5; // spring stiffness (rad/s)
   const ZETA = 0.8; // spring damping
   const FOLLOW = 22; // stiffer spring while a trackpad or wheel is moving the row
-  const FLING = 0.22; // seconds of a flick's speed carried into where it lands
+  const FLING = 0.12; // seconds of a flick's speed carried into where it lands
   const FOLDED = 0.16; // a photo tucked behind another is at least this much smaller
   const FAN_MS = 1100; // ms each photo takes to slide out from behind the one inside it
   const FAN_STEP = 130; // ms between one photo starting and the next one out
@@ -486,7 +486,7 @@
     const px = d * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerWidth : 1);
     if (!wheelTimer) target = pos;
     wheelDir = Math.sign(px);
-    target += px / (perItem * 1.15);
+    target += px / (perItem * 2); // the row moves half as far as the fingers
     stiffness = FOLLOW;
     run();
     clearTimeout(wheelTimer);
