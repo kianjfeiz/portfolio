@@ -1,6 +1,7 @@
 // Cover Flow: the photos sit in a looping row, the one in focus flat in the middle
 // and the rest folded back on either side. Drag, swipe, scroll, click or use the
-// arrow keys to move along it. The row fans out as the opening lands (js/intro.js),
+// arrow keys to move along it. Clicking the photo in focus (or Enter) opens it out to
+// fill the screen (js/viewer.js). The row fans out as the opening lands (js/intro.js),
 // and folds away behind the photo in focus whenever another part of the page asks it
 // to ('row-fold' and 'row-unfold' events, from the about view in js/pages.js).
 
@@ -420,7 +421,7 @@
   // ---------- drag, swipe, click ----------
 
   stage.addEventListener('pointerdown', (e) => {
-    if (!interactive || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (!interactive || dragging || (e.pointerType === 'mouse' && e.button !== 0)) return; // (a second finger is ignored)
     hideCaption();
     clearTimeout(wheelTimer);
     wheelTimer = 0;
@@ -442,9 +443,11 @@
     const d = dragging;
     dragging = null;
     if (!d.moved) {
-      // a click: bring that photo into focus, the short way round
+      // a click: open the photo in focus if the row is (as good as) at rest on it, otherwise
+      // bring that photo into focus, the short way round
       const i = items.indexOf(d.hit);
       const here = Math.round(pos);
+      if (i >= 0 && i === mod(target, n) && Math.abs(pos - target) < 0.1) return openPhoto();
       vel = 0;
       return goTo(i >= 0 ? here + offset(i, here) : here);
     }
@@ -500,11 +503,30 @@
 
   addEventListener('keydown', (e) => {
     if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter' && Math.abs(pos - target) < 0.1) return openPhoto(); // (as good as at rest)
     if (e.key === 'ArrowLeft') goTo(Math.round(target) - 1);
     else if (e.key === 'ArrowRight') goTo(Math.round(target) + 1);
     else return;
     viaKeys = true;
     e.preventDefault();
+  });
+
+  // ---------- opening a photo out to fill the screen (js/viewer.js) ----------
+
+  let viewing = false; // a photo is open
+
+  function openPhoto() {
+    viewing = true;
+    interactive = false;
+    hideCaption();
+    pos = target;
+    vel = 0;
+    document.dispatchEvent(new CustomEvent('photo-open', { detail: { photo: items[mod(target, n)] } }));
+  }
+
+  document.addEventListener('photo-closed', () => {
+    viewing = false;
+    ready();
   });
 
   // ---------- captions ----------
@@ -542,7 +564,7 @@
     placedOn = el;
     const w = captionW;
     const minX = 16 - ox;
-    const maxX = innerWidth - 16 - ox;
+    const maxX = root.clientWidth - 16 - ox; // (the page's width: a pinch zoom doesn't change it)
     // centre it over the visible part of the photo, but keep it on screen
     const [vl, vr] = visibleSpan(i, minX, maxX);
     const lo = Math.max(-half[i], alongAt(st, vl));
@@ -628,7 +650,7 @@
   }
 
   function ready() {
-    if (folded || fan || holds.size || root.classList.contains('intro')) return; // not yet: folded away (or about to be), or still opening or fanning out
+    if (viewing || folded || fan || holds.size || root.classList.contains('intro')) return; // not yet: a photo is open, folded away (or about to be), or still opening or fanning out
     interactive = true;
     render();
     settled();
@@ -679,6 +701,7 @@
   function stepFan(now) {
     const { goal, from, start } = fan;
     const f = mod(Math.round(pos), n);
+    const rest = goal ? flowAt(f) : null; // where they're fanning out to
     let moving = false;
     for (let i = 0; i < n; i++) {
       const k = Math.abs(offset(i, f));
@@ -687,12 +710,23 @@
       const wait = partway ? 0 : goal ? (k - 1) * FAN_STEP : (SEAM - k) * FOLD_STEP;
       const t = clamp((now - start - wait) / ((goal ? FAN_MS : FOLD_MS) * Math.abs(goal - from[i])), 0, 1);
       out[i] = from[i] + (goal - from[i]) * (goal ? easeOut(t) : ease(t));
-      if (t < 1) moving = true;
+      if (t < 1 && !(goal && looksOut(i, rest[i]))) moving = true;
     }
     if (moving) return;
+    // fanning out, they're all as good as there (or out of sight): put them there, so the
+    // row can be moved as soon as it looks still
+    if (goal) out.fill(1);
     fan = null;
     if (goal) fannedOut();
     else foldedAway();
+  }
+
+  // can't be told from fanned out: all but there, or out of sight both now and once there
+  // (still tucked behind its neighbour, or off the screen)
+  function looksOut(i, st) {
+    if (out[i] >= 0.995 || st.o < 0.01) return true;
+    const offScreen = (s) => edgeOf(s, i, 1) < -ox || edgeOf(s, i, -1) > root.clientWidth - ox;
+    return offScreen(st) && (out[i] === 0 || (drawn[i] && offScreen(drawn[i])));
   }
 
   // ---------- folding away behind the photo in focus (for the about view) ----------

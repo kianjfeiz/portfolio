@@ -18,10 +18,13 @@
       if (!matchMedia('(prefers-reduced-motion: reduce)').matches) c.add('intro');
       if (/^\/about\/?$/.test(location.pathname)) c.add('about-open');
     }
+    // no pinch zoom (Safari ignores the CSS that says so): it shifts everything out of place
+    addEventListener('gesturestart', (e) => e.preventDefault());
   </script>
   <script src="/js/intro.js" defer></script>
   <script src="/js/coverflow.js" defer></script>
   <script src="/js/pages.js" defer></script>
+  <script src="/js/viewer.js" defer></script>
 </head>
 <body class="home">
   <main class="frame">
@@ -33,7 +36,6 @@
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/night-sled.jpg" data-caption="Copper, Colorado" width="1400" height="1050" alt="Sledding at night in falling snow" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/fog-night.jpg" data-caption="Grizzly Peak, Berkeley" width="1050" height="1400" alt="Friends in the fog at dusk" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/frauenkirche.jpg" data-caption="Munich, Germany" width="942" height="1400" alt="The towers of the Frauenkirche above a shopping street" fetchpriority="low">
-        <img class="card" draggable="false" data-side="left" src="/assets/img/stack/painted-ladies.jpg" data-caption="Painted Ladies, San Francisco" width="360" height="480" alt="Looking out over the Painted Ladies from the grass in Alamo Square" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/madrid-night.jpg" data-caption="Madrid, Spain" width="1400" height="942" alt="A blurred crowd with hands raised in front of lit balconies at night" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/snowbird-powder.jpg" data-caption="Snowbird, Utah" width="768" height="1024" alt="A goggled selfie with friends sprawled in deep powder" fetchpriority="low">
         <img class="card" draggable="false" data-side="left" src="/assets/img/stack/sf-window.jpg" data-caption="San Francisco, California" width="1050" height="1400" alt="Friends doing makeup in an open window by a fire escape" fetchpriority="low">
@@ -71,6 +73,12 @@
     <footer class="sign">
       <h1 class="name"><a href="/">kian feiz</a></h1>
     </footer>
+
+    <!-- a photo opened out to fill the screen (js/viewer.js) -->
+    <div class="viewer" hidden>
+      <img class="viewer-photo" alt="" draggable="false">
+      <button class="viewer-exit nav-link" type="button">exit</button>
+    </div>
   </main>
 </body>
 </html>
