@@ -37,17 +37,13 @@
 
   function open(el) {
     photo = el;
+    // the copy the row already has, so it shows at once (one still loading would leave the
+    // last photo opened showing until it came)
     img.src = el.currentSrc || el.src;
-    if (el.srcset) {
-      img.srcset = el.srcset;
-      img.sizes = '100vw';
-    } else {
-      img.removeAttribute('srcset');
-      img.removeAttribute('sizes');
-    }
     img.alt = el.alt;
     viewer.hidden = false;
     place();
+    sharpen(el);
     const from = overPhoto();
     photo.classList.add('is-viewed'); // the open one stands in for it
     void viewer.offsetWidth; // (so the backdrop fades in from clear)
@@ -55,6 +51,22 @@
     anim?.cancel();
     anim = img.animate([{ transform: from }, { transform: 'none' }], { duration: reduced ? 0 : MS, easing: EASE });
     exit.focus({ preventScroll: true, focusVisible: false }); // (no underline on it until it's hovered)
+  }
+
+  // swap in a bigger copy if the screen wants one, once it's loaded and (within reason)
+  // ready to draw
+  function sharpen(el) {
+    if (!el.srcset) return;
+    const big = new Image();
+    big.sizes = `${Math.round(img.offsetWidth)}px`;
+    big.srcset = el.srcset;
+    big.src = el.src;
+    big.onload = () =>
+      Promise.race([big.decode(), new Promise((r) => setTimeout(r, 300))])
+        .catch(() => {})
+        .then(() => {
+          if (photo === el && big.currentSrc !== img.currentSrc) img.src = big.currentSrc;
+        });
   }
 
   function close() {
