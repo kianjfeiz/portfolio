@@ -61,6 +61,12 @@ body {
   padding: 2rem 1rem;
 }
 
+/* equal space above the photos as below the links, with the name at the foot of the lower one */
+.frame::before {
+  content: "";
+  flex: 1 1 0;
+}
+
 .stage {
   position: relative;
   touch-action: pan-y; /* horizontal swipes move the photos */
@@ -160,13 +166,16 @@ body {
 
 /* ---------- name and links ---------- */
 
-.nav {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: clamp(1.75rem, 5vw, 4.5rem);
+.nav,
+.sign {
   font-size: clamp(1.5rem, 1.1rem + 1vw, 2.1rem);
   line-height: 1;
+}
+
+.sign {
+  flex: 1 1 0;
+  display: flex;
+  align-items: flex-end;
 }
 
 .name {
@@ -236,6 +245,11 @@ body {
   padding-top: clamp(1.5rem, 6vh, 4rem);
 }
 
+/* no space above here: the text starts at the top and the name takes what's left below */
+.about-open .frame::before {
+  display: none;
+}
+
 .about-open .hero {
   width: min(30vw, calc((100svh - 12rem) * 4 / 3 * 0.45));
 }
@@ -254,6 +268,10 @@ body {
   view-transition-name: nav;
 }
 
+.sign {
+  view-transition-name: sign;
+}
+
 ::view-transition-group(*) {
   animation-duration: 0.9s;
   animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
@@ -266,13 +284,15 @@ body {
 
 ::view-transition-old(root),
 ::view-transition-old(selfie),
-::view-transition-old(nav) {
+::view-transition-old(nav),
+::view-transition-old(sign) {
   display: none;
 }
 
 ::view-transition-new(root),
 ::view-transition-new(selfie),
-::view-transition-new(nav) {
+::view-transition-new(nav),
+::view-transition-new(sign) {
   animation: none;
 }
 
@@ -297,17 +317,13 @@ body {
   transition: opacity 0.25s ease;
 }
 
-.intro :is(.nav, .about) {
+.intro :is(.nav, .about, .sign) {
   opacity: 0;
 }
 
 @media (max-width: 700px) {
   .hero {
     width: min(64vw, calc((100svh - 12rem) * 4 / 3 * 0.7));
-  }
-
-  .nav {
-    gap: 1.6rem;
   }
 
   .about-open .hero {

@@ -37,7 +37,7 @@ async function run() {
   const shrink = img.animate([{ transform: cover() }, { transform: 'none' }], { duration: SHRINK, easing: EASE, fill: 'forwards' });
   img.style.transform = '';
   setTimeout(landing, SHRINK * 0.72); // the other photos start unfolding (js/coverflow.js)
-  const fades = [...document.querySelectorAll('.nav, .about')].map((el) =>
+  const fades = [...document.querySelectorAll('.nav, .about, .sign')].map((el) =>
     el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, delay: SHRINK * 0.6, easing: 'ease-out', fill: 'forwards' }),
   );
   const all = [shrink, ...fades];
