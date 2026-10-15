@@ -2,8 +2,7 @@
 // and the rest folded back on either side. Drag, swipe, scroll, click or use the
 // arrow keys to move along it. The row fans out as the opening lands (js/intro.js),
 // and folds away behind the photo in focus whenever another part of the page asks it
-// to ('row-fold' and 'row-unfold' events: a photo's video in js/player.js, the about
-// view in js/pages.js).
+// to ('row-fold' and 'row-unfold' events, from the about view in js/pages.js).
 
 (() => {
   const ANGLE = 34; // degrees a side photo folds back
@@ -425,7 +424,6 @@
     hideCaption();
     clearTimeout(wheelTimer);
     wheelTimer = 0;
-    clicked = null;
     dragging = { id: e.pointerId, x0: e.clientX, x: e.clientX, pos0: pos, moved: false, hit: e.target.closest('.card, .hero'), samples: [[e.timeStamp, e.clientX]] };
     stage.setPointerCapture(e.pointerId);
     run();
@@ -444,15 +442,10 @@
     const d = dragging;
     dragging = null;
     if (!d.moved) {
-      // a click: bring that photo into focus, the short way round (or, if it's already
-      // in focus and has a video, play that on the click event that follows)
+      // a click: bring that photo into focus, the short way round
       const i = items.indexOf(d.hit);
       const here = Math.round(pos);
       vel = 0;
-      if (i >= 0 && offset(i, here) === 0 && d.hit.dataset.video) {
-        clicked = d.hit;
-        return;
-      }
       return goTo(i >= 0 ? here + offset(i, here) : here);
     }
     vel = (-fingerSpeed(d.samples, e.timeStamp) * 1000) / perItem;
@@ -460,14 +453,6 @@
   }
   stage.addEventListener('pointerup', release);
   stage.addEventListener('pointercancel', release);
-
-  // Phones only let a video start with sound from a real click, so the video opens on
-  // the click event rather than when the finger lifts.
-  let clicked = null;
-  stage.addEventListener('click', () => {
-    if (clicked) playVideo(clicked, false);
-    clicked = null;
-  });
 
   // the finger's speed over its last 80 ms in px per ms (least squares), or 0 if it stopped
   function fingerSpeed(samples, now) {
@@ -517,7 +502,6 @@
     if (!interactive || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'ArrowLeft') goTo(Math.round(target) - 1);
     else if (e.key === 'ArrowRight') goTo(Math.round(target) + 1);
-    else if (e.key === 'Enter' && e.target === document.body && Math.round(pos) === Math.round(target) && items[mod(Math.round(target), n)].dataset.video) return playVideo(items[mod(Math.round(target), n)], true); // (once it's got there)
     else return;
     viaKeys = true;
     e.preventDefault();
@@ -611,15 +595,6 @@
     clearTimeout(swapTimer);
     shownFor = null;
     caption.classList.remove('is-shown');
-    restOn(null); // (it hides whenever the row moves or folds)
-  }
-
-  // tell js/peek.js which photo the row has come to rest on (null: none, it's on the move)
-  let resting = null;
-  function restOn(photo) {
-    if (photo === resting) return;
-    resting = photo;
-    document.dispatchEvent(new CustomEvent('row-rest', { detail: { photo } }));
   }
 
   // the row has come to rest
@@ -627,7 +602,6 @@
     if (!interactive || dragging || wheelTimer) return;
     const hovered = canHover && pointer && !viaKeys ? photoAt(pointer.x, pointer.y) : null;
     showCaption(hovered || items[mod(target, n)]);
-    restOn(items[mod(target, n)]);
   }
 
   addEventListener('pointermove', (e) => {
@@ -659,10 +633,6 @@
     render();
     settled();
   }
-
-  // the photo in focus has a video and was clicked: js/player.js plays it. Sent right
-  // away, while this still counts as the click that lets the video play with sound.
-  const playVideo = (photo, viaKeyboard) => document.dispatchEvent(new CustomEvent('photo-click', { detail: { photo, viaKeyboard } }));
 
   // ---------- fanning out and folding away ----------
 
@@ -725,7 +695,7 @@
     else foldedAway();
   }
 
-  // ---------- folding away behind the photo in focus (for its video, or the about view) ----------
+  // ---------- folding away behind the photo in focus (for the about view) ----------
 
   const holds = new Set(); // what wants the row folded away right now
   let folded = false; // folded away behind the photo in focus, or on the way
@@ -754,7 +724,6 @@
       pending = { toSelfie }; // let them finish fanning out or folding, then go round
       return;
     }
-    if (folded && mod(goal, n) !== kept) return swap(goal);
     if (goal === here) goTo(goal, tuck);
     else glideTo(goal, tuck); // round to the selfie, unhurried
   }
@@ -775,28 +744,6 @@
   function foldedAway() {
     items.forEach((el, i) => i !== kept && el.classList.add('is-tucked'));
     if (pending) return foldPending();
-    announceFolded();
-  }
-
-  // Folded round one photo but now wanted round another (the about view while a video was
-  // open): behind the video, the hidden row jumps round and the old photo tucks away, while the
-  // new one waits in the middle out of sight until the video closing over it has taken its
-  // shape (js/player.js, about 0.45 s).
-  function swap(goal) {
-    glide = null;
-    arrived = null;
-    vel = 0;
-    pos = target = goal;
-    const old = kept;
-    kept = mod(goal, n);
-    out[old] = 0;
-    out[kept] = 1;
-    items[old].classList.add('is-tucked');
-    const now = items[kept];
-    now.classList.remove('is-tucked');
-    now.classList.add('is-waiting');
-    setTimeout(() => now.classList.remove('is-waiting'), reduced ? 0 : 450);
-    render();
     announceFolded();
   }
 

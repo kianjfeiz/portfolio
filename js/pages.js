@@ -32,12 +32,8 @@
     about = toAbout;
     const mine = ++turn;
     if (toAbout) {
-      // the row glides back to the selfie and folds away behind it (and a video that's playing
-      // closes into the selfie); once that's all done, everything moves
-      const video = document.querySelector('.player');
-      const steps = [once('row-folded')];
-      if (video && !video.hidden) steps.push(once('player-closed'));
-      Promise.all(steps).then(() => mine === turn && relayout(setLayout));
+      // the row glides back to the selfie and folds away behind it; once it has, everything moves
+      once('row-folded').then(() => mine === turn && relayout(setLayout));
       row('row-fold');
       document.dispatchEvent(new Event('route'));
     } else {

@@ -31,8 +31,7 @@ html {
 
 a,
 button,
-.deck-open .stage :is(.card:not(.is-center), [data-video]),
-.player-video {
+.deck-open .stage .card:not(.is-center) {
   cursor: url("../assets/cursor/hand.png") 9 2, pointer;
   cursor: -webkit-image-set(url("../assets/cursor/hand.png") 1x, url("../assets/cursor/hand@2x.png") 2x) 9 2, pointer;
 }
@@ -111,9 +110,9 @@ body {
   will-change: transform;
 }
 
-/* folded away out of sight behind the photo in focus, for its video or the about view
-   (js/coverflow.js moves them there and back) */
-.stage :is(.is-tucked, .is-waiting) {
+/* folded away out of sight behind the selfie, for the about view (js/coverflow.js moves
+   them there and back) */
+.stage .is-tucked {
   opacity: 0 !important;
   pointer-events: none;
 }
@@ -156,155 +155,6 @@ body {
   .caption.is-shown {
     filter: none;
     transition-duration: 0.15s;
-  }
-}
-
-/* ---------- a moment of a photo's video (js/peek.js) ---------- */
-
-/* exactly over the photo in focus at rest, in its shape (--shape, width / height); the stage is
-   as wide as the 4:3 selfie, so width r * 75% gives shape r */
-.peek {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  z-index: 12000; /* above the photos, under the caption and the player */
-  height: 100%;
-  width: calc(var(--shape, 4 / 3) * 75%);
-  translate: -50% 0;
-  border-radius: var(--radius);
-  object-fit: cover;
-  pointer-events: none; /* clicks go to the photo */
-  opacity: 0;
-  transition: opacity 0.12s ease; /* cut short: gone before the row moves off */
-}
-
-.peek.is-shown {
-  opacity: 1;
-  transition-duration: 0.7s;
-}
-
-.peek.is-ending {
-  transition-duration: 0.6s;
-}
-
-/* ---------- the video (js/player.js) ---------- */
-
-/* it fades in over the photo in its shape (--from, width / height), and once the other photos
-   have folded away it opens out to the video's (--to), as tall as the photo, or --grow times
-   taller (upward) for a tall video on a phone. The stage is as wide as the 4:3 selfie, so
-   width r * 75% gives shape r. */
-.player {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  z-index: 15000; /* above the photos */
-  height: 100%;
-  width: calc(var(--from, 4 / 3) * 75%);
-  translate: -50% 0;
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--still, none) center / cover no-repeat var(--ink); /* the photo, until the video plays */
-  opacity: 0;
-  transition: width 0.45s cubic-bezier(0.7, 0, 0.2, 1), height 0.45s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.25s ease 0.4s;
-}
-
-.player:not(.is-open) {
-  pointer-events: none; /* closing: clicks go to the photo coming back */
-}
-
-.player.is-open {
-  opacity: 1;
-  transition: opacity 0.25s ease, width 0.45s cubic-bezier(0.5, 0, 0.2, 1), height 0.45s cubic-bezier(0.5, 0, 0.2, 1);
-}
-
-.player.is-open.is-grown {
-  height: calc(var(--grow, 1) * 100%);
-  width: calc(var(--to, 16 / 9) * var(--grow, 1) * 75%);
-}
-
-/* the photo under the player, once the player has faded in over it */
-.stage .is-behind-player {
-  visibility: hidden;
-  transition: visibility 0s 0.3s;
-}
-
-.player-video {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.player.is-rolling .player-video {
-  opacity: 1;
-}
-
-/* in the page's serif, white over the video: "play" / "pause" and "exit" */
-.player-btn {
-  position: absolute;
-  min-width: 44px;
-  height: 44px;
-  padding: 0 12px;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 1.35rem;
-  line-height: 44px;
-  color: #fff;
-  text-shadow: 0 1px 10px rgb(0 0 0 / 0.45);
-  text-underline-offset: 0.18em;
-  text-decoration-thickness: 1px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.player.is-grown .player-btn {
-  opacity: 1;
-  transition: opacity 0.25s ease 0.35s;
-}
-
-.player-btn:hover,
-.player-btn:focus-visible {
-  text-decoration-line: underline;
-  outline: none;
-}
-
-.player.is-grown .player-btn:active {
-  opacity: 0.6;
-}
-
-.player-toggle {
-  left: 4px;
-  bottom: 4px;
-}
-
-.player-toggle::after {
-  content: "play";
-}
-
-.player.is-playing .player-toggle::after {
-  content: "pause";
-}
-
-.player-close {
-  top: 4px;
-  right: 4px;
-}
-
-.player-close::after {
-  content: "exit";
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .player,
-  .player.is-open,
-  .player-btn,
-  .player.is-grown .player-btn,
-  .player-video,
-  .stage .is-behind-player {
-    transition: none;
   }
 }
 
