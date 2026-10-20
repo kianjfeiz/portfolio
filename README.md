@@ -1,6 +1,6 @@
 # portfolio
 
-My personal website. Plain HTML, CSS and JavaScript, no build step.
+My personal website, live at kianfeiz.com. Hosted on Vercel :)
 
 To run it locally:
 
